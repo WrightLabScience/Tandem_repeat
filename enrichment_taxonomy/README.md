@@ -1,4 +1,4 @@
-# Enrichment analysis for proteome
+# Enrichment analysis for taxonomy
 To generate figure 4A
 
 Step 0: Prepare source data
