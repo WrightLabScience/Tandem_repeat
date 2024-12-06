@@ -1,0 +1,79 @@
+Analysis_prok_K00689_TR.txt
+
+Shu-Ting Cho <shutingcho@pitt.edu>
+
+# Prokaryotic gene K00689 tandem repeat analysis
+
+# Task: Make gene tree
+# 1. Detect tandem repeat in K00689 sequences
+# 2. Make multiple sequence alignment
+# 3. Remove tandem repeat region from MSA
+# 4. Make gene tree
+
+# input file
+# /Users/shc167/GitHub_repo/TR_MS/prok_K00689/prok_K00689_seqs.fasta
+
+# load library
+library(DECIPHER)
+
+# read input file
+prokK00689_faa <- readAAStringSet('/Users/shc167/GitHub_repo/TR_MS/prok_K00689/prok_K00689_seqs.fasta')
+# 23 K00689 genes with tandem repeat + 1 outgroup
+# Outgroup (Paenibacillus beijingensis) was picked from blast hits
+
+# find TR with DetectRepeats
+prokK00689_faa_TR <- DetectRepeats(prokK00689_faa, processors = NULL)
+
+# get MSA
+prokK00689_faa_msa.3 <- AlignSeqs(prokK00689_faa)
+writeXStringSet(prokK00689_faa_msa.3, '/Users/shc167/GitHub_repo/TR_MS/prok_K00689/prokK00689_faa_msa.3.fasta')
+
+# BrowseSeqs, highligh TR regions
+TR_h <- prokK00689_faa_TR
+MSA_h <- prokK00689_faa_msa.3
+seq_h <- prokK00689_faa
+
+colors <- c("#b2df8a", "#33a02c") # light green, dark green
+cols <- vector("list", length(MSA_h))
+for (i in seq_along(cols)) {
+  m <- matrix(0, nrow=3, ncol=width(seq_h[i]))
+  for (j in which(TR_h[, "Index"] == i)) {
+    left <- TR_h[[j, "Left"]]
+    right <- TR_h[[j, "Right"]]
+    for (k in seq_along(left)) {
+      r <- left[k]:right[k]
+      m[, r] <- col2rgb(colors[(k - 1) %% length(colors) + 1])
+    }
+  }
+  cols[[i]] <- m/255
+}
+BrowseSeqs(MSA_h, patterns=cols)
+
+# remove TR region from the MSA
+prokK00689_faa_msa_rmTR <- subseq(prokK00689_faa_msa.3, 1, 1327)
+writeXStringSet(prokK00689_faa_msa_rmTR, '/Users/shc167/GitHub_repo/TR_MS/prok_K00689/prokK00689_faa_msa_rmTR.fasta')
+
+# make tree with TreeLine
+prokK00689_faa_msa_rmTR_ML.3 <- TreeLine(myXStringSet=prokK00689_faa_msa_rmTR, method="ML", cutoff=0.05) # The selected model was:  WAG+G4
+WriteDendrogram(prokK00689_faa_msa_rmTR_ML.3, '/Users/shc167/GitHub_repo/TR_MS/prok_K00689/prokK00689_faa_msa_rmTR_ML.tree')
+
+# plot tree
+par(mfrow = c(1, 1), mar=c(0,0,1,16))
+plot(dendrapply(prokK00689_faa_msa_rmTR_ML.3,
+	function(x) {
+		s <- attr(x, "probability") # choose "probability" (aBayes) or "support"
+		if (!is.null(s) && !is.na(s)) {
+			s <- formatC(as.numeric(s), digits=2, format="f")
+			attr(x, "edgetext") <- paste(s, "\n")
+		}
+		attr(x, "edgePar") <- list(p.col=NA, p.lwd=1e-5, t.col="#CC55AA", t.cex=0.7)
+		if (is.leaf(x))
+			attr(x, "nodePar") <- list(lab.font=3, pch=NA)
+		x
+	}),
+	horiz=TRUE,
+	yaxt='n',
+    main='prokK00689_faa_msa_rmTR_ML.3')
+# add a scale bar
+arrows(1.5, 1, 1.4, 1, code=3, angle=90, len=0.05, xpd=TRUE)
+text(1.45, 1, "0.1 subs./site", pos=3, xpd=TRUE)

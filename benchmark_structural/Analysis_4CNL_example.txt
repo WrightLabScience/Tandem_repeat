@@ -1,0 +1,187 @@
+Analysis_4CNL_example.txt
+
+Shu-Ting Cho <shutingcho@pitt.edu>
+
+# Benchmark sequence based tandem repeat detectors on structural repeats
+# Fig2BCDE
+
+# load library
+library(DECIPHER)
+
+# Download 4cnl.pdb from https://www.rcsb.org/structure/4CNL
+
+less cesymm-2.2.0-SNAPSHOT/alignments/4CNLA.fas
+>4CNL.A_92-113 1:22
+----------------TTSGWVKQD--GAWYYFDGNGNLV
+>4CNL.A_114-153 23:62
+KNAWQGSYYLKADGKMAQSEWIYDSSYQAWYYLKSDGSYA
+>4CNL.A_154-193 63:102
+KNAWQGAYYLKSNGKMAQGEWVYDSSYQAWYYLKSDGSYA
+>4CNL.A_194-233 103:142
+RNAWQGNYYLKSDGKMAKGEWVYDATYQAWYYLTSDGSYA
+>4CNL.A_234-269 143:178
+YSTWQGNYYLKSDGKMAVNEWV-DG---GRYYVGADGVWK
+
+# open pdb in pymol and color
+color 0xe6194B, resi 92-113
+color 0xf58231, resi 114-153
+color 0xffe119, resi 154-193
+color 0x3cb44b, resi 194-233
+color 0x4363d8, resi 234-269
+
+split_states 4cnlA_ali
+4CNL.A_92-113 4CNL.A_114-153 4CNL.A_154-193 4CNL.A_194-233 4CNL.A_234-269
+
+# to get pairwise TM-score, splite the 5 models in 4cnl_split.pdb into 5 .pdb files
+# use https://seq2fun.dcmb.med.umich.edu//TM-align/ to calculate TM-score for each pair
+TM-score	4CNL.A_92-113	4CNL.A_114-153	4CNL.A_154-193	4CNL.A_194-233	4CNL.A_234-269
+4CNL.A_92-113	1	0.63022	0.60927	0.64898	0.49544
+4CNL.A_114-153	0.48649	1	0.87245	0.95544	0.77884
+4CNL.A_154-193	0.48086	0.87245	1	0.92912	0.74097
+4CNL.A_194-233	0.48797	0.95544	0.92912	1	0.76659
+4CNL.A_234-269	0.39838	0.85117	0.79941	0.83368	1
+
+pairwiseTMscore_4cnl <- read.table(file = '4cnl_pairwiseTMscores.tsv', header = TRUE, row.names = 1, sep= "\t")
+
+heatmap(as.matrix(pairwiseTMscore_4cnl),scale = "none", col= colorRampPalette(c('white', "#1b98e0"))(100), Rowv=NA, Colv=NA)
+
+
+## run CE-Symm
+cd cesymm-2.2.0-SNAPSHOT
+./runCESymm.sh 4cnl.pdb
+
+
+# MSA
+msa_4CNLA <- readAAStringSet('/Users/shc167/Documents/project/TR02/TR02.87/cesymm-2.2.0-SNAPSHOT/alignments/4CNLA.fas')
+BrowseSeqs(msa_4CNLA)
+
+# diff color scheme
+colors <- c(`-`="#000000", `A`="#BDB1E8", `R`="#EFA2C5", `N`="#F6602F",
+		`D`="#FD5559", `C`="#12C7FE", `Q`="#DDACB4", `E`="#FEA097", `G`="#F46802",
+		`H`="#FCA708", `I`="#369BD9", `L`="#2E95EC", `K`="#CF7690", `M`="#4B8EFE",
+		`F`="#76997D", `P`="#FD2AE3", `S`="#A08A9A", `T`="#9A84D5", `W`="#74C80D",
+		`Y`="#9BB896", `V`="#89B9F9")
+BrowseSeqs(msa_4CNLA, colors=colors, patterns=names(colors))
+
+
+# Fig2E:
+## detect tandem repeats in aa sequence using different tools
+TR_h <- DetectRepeats(aa['4CNLA'], processors=NULL, useEmpirical=TRUE)
+#   Index Begin End         Left        Right    Score
+# 1     1    10 169 10, 50, .... 49, 89, .... 32.78345
+
+TR_h <- DetectRepeats(aa['4CNLA'], processors=NULL, useEmpirical=FALSE)
+#   Index Begin End         Left        Right    Score
+# 1     1    10 169 10, 50, .... 49, 89, .... 20.73899
+
+
+df_HHrepID_aa[df_HHrepID_aa$seqID=='4CNLA',]
+		 seqID start end P.value Type Repeats Length Offset
+1142 4CNLA    11  47 2.7e-66    A       4     40     48
+1143 4CNLA    48  87 2.7e-66    A       4     40     48
+1144 4CNLA    88 127 2.7e-66    A       4     40     48
+1145 4CNLA   128 164 2.7e-66    A       4     40     48
+
+
+grep '4CNLA' /Users/shc167/Documents/project/TR02/TR02.70/trust/eval.aa/-70
+4CNLA	5	42	139.26456	149.26456
+4CNLA	43	82	186.71005	186.71005
+4CNLA	83	122	190.41957	190.41957
+4CNLA	123	162	175.76727	175.76727
+4CNLA	5	82	351.78354	361.78354
+4CNLA	83	162	389.96564	389.96564
+
+# treks
+		Research of repeats is requested:
+
+Length: 40 residues - nb: 3  from  45 to 164 - Psim:0.9 region Length:120 
+YDSSYQAWYYLKSDGSYAKNAWQGAYYLKSNGKMAQGEWV 45:84
+YDSSYQAWYYLKSDGSYARNAWQGNYYLKSDGKMAKGEWV 85:124
+YDATYQAWYYLTSDGSYAYSTWQGNYYLKSDGKMAVNEWV 125:164
+**********************
+1 sequences have been detected as tandem repeats containing. 
+Memory usage: : -
+
+grep '4CNLA' /Users/shc167/Documents/project/TR02/TR02.88/xstream.aa/0.2
+4CNLA	182	11	159	40	3.73	AWYYFDGNGNLVKNAWQGSYYLKADGKMAQSEWIYDSSYQ AWYYLKSDGSYAKNAWQGAYYLKSNGKMAQGEWVYDSSYQ AWYYLKSDGSYARNAWQGNYYLKSDGKMAKGEWVYDATYQ AWYYLTSDGSYAYSTWQGNYYLKSDGKMA	AWYYLKSDGSYAKNAWQGNYYLKSDGKMAQGEWVYDSSYQ	AWYYLKSDGSYAKNAWQGNYYLKSDGKMAQGEWVYDSSYQ	0.14
+11:50,51:90,91:130,131:159
+
+
+# make mt for plotting
+heatmap_mt_4CNLA <- matrix(0, nrow = 17, ncol = 182)
+rownames(heatmap_mt_4CNLA) <- c('CE-Symm [SymmTMscore=0.78]', '','DetectRepeats(w/ empirical) [score=33]' , 'DetectRepeats(w/o empirical) [score=21]', 'HHrepID [P-value=2.7e-66]', 'RADAR [Total Score=115.76]', 'TRUST [score=173]', 'T-REKS [Psim=0.9]',  'XSTREAM [consensus error=0.14]', '', 'DetectRepeats(w/ empirical) [no hits]', 'DetectRepeats(w/o empirical) [no hits]', 'HHrepID [P-value=3.4e-10]', 'RADAR [Total Score=135.57]', 'TRUST [score=39]', 'T-REKS [Psim=0.7]',  'XSTREAM [no hits]')
+
+# backgroud color
+heatmap_mt_4CNLA[11:17, ] <- 3
+heatmap_mt_4CNLA[c(2,10), ] <- 4
+
+# CE-Symm
+heatmap_mt_4CNLA[1, c(1:22,63:102,143:178)] <- 1
+heatmap_mt_4CNLA[1, c(23:62,103:142)] <- 2
+
+# DetectRepeats w/ Emp TP
+heatmap_mt_4CNLA[3, c(10:49,90:129)] <- 1
+heatmap_mt_4CNLA[3, c(50:89,130:169)] <- 2
+
+# DetectRepeats w/o Emp TP
+heatmap_mt_4CNLA[4, c(10:49,90:129)] <- 1
+heatmap_mt_4CNLA[4, c(50:89,130:169)] <- 2
+
+# HHrepID TP, FP
+heatmap_mt_4CNLA[5, c(11:47,88:127)] <- 1
+heatmap_mt_4CNLA[5, c(48:87,128:164)] <- 2
+heatmap_mt_4CNLA[13, c(57:76,96:114)] <- 1
+heatmap_mt_4CNLA[13, c(77:95)] <- 2
+
+# RADAR TP, FP
+heatmap_mt_4CNLA[6, c(27:36,67:76,130:139)] <- 1
+heatmap_mt_4CNLA[6, c(50:59,90:99)] <- 2
+heatmap_mt_4CNLA[14, c(22:43,117:135)] <- 1
+heatmap_mt_4CNLA[14, c(44:68,154:172)] <- 2
+
+# TRUST TP, FP
+heatmap_mt_4CNLA[7, c(5:42,83:122)] <- 1
+heatmap_mt_4CNLA[7, c(43:82,123:162)] <- 2
+heatmap_mt_4CNLA[15, c(18:49,89:121,141:169)] <- 1
+heatmap_mt_4CNLA[15, c(50:88,122:140)] <- 2
+
+# T-REKS TP, FP
+heatmap_mt_4CNLA[8, c(45:84,125:164)] <- 1
+heatmap_mt_4CNLA[8, c(85:124)] <- 2
+heatmap_mt_4CNLA[16, c(88:107)] <- 1
+heatmap_mt_4CNLA[16, c(108:131)] <- 2
+
+# XSTREAM TP, FP
+heatmap_mt_4CNLA[9, c(11:50,91:130)] <- 1
+heatmap_mt_4CNLA[9, c(51:90,131:159)] <- 2
+
+heatmap(heatmap_mt_4CNLA, scale='none', col = c('lightgrey', '#FFB81C', '#003594', 'darkgrey', 'white'), Rowv=NA, Colv=NA, revC=TRUE)
+
+
+
+
+
+## similarity matrix: msa_4CNLA
+# distance matrix: includeTerminalGaps = FALSE, penalizeGapLetterMatches = NA
+# show distance mt
+d <- DistanceMatrix(msa_4CNLA, includeTerminalGaps = FALSE, penalizeGapLetterMatches = NA, verbose=FALSE)
+d[lower.tri(d, diag=TRUE)] <- NA
+d[nrow(d),1] <- 0
+d[nrow(d),2] <- 1
+
+# Create a matrix of values
+values <- 100-round(d*100, digits = 0)
+df <- data.frame(
+	row = rep(1:nrow(values), ncol(values)),
+	col = rep(1:ncol(values), each = nrow(values)),
+	value = as.vector(values)
+)
+# Create the heatmap using ggplot2
+library(ggplot2)
+ggplot(df, aes(x = col, y = row, fill = value)) +
+	geom_tile() +
+	geom_text(aes(label = value)) +
+	scale_fill_gradient(low = "white", high = "#1b98e0", na.value = "white")+
+	scale_y_reverse()+
+	theme_minimal()+
+	theme(legend.position="none", axis.ticks = element_blank(),axis.text = element_blank(), axis.title=element_blank())

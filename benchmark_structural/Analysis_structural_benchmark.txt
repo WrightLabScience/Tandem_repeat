@@ -1,0 +1,300 @@
+Analysis_structural_benchmark.txt
+
+Shu-Ting Cho <shutingcho@pitt.edu>
+
+# Benchmark sequence based tandem repeat detectors on structural repeats
+# Fig2FG
+
+# load library
+library(DECIPHER)
+
+# read input
+aa <- readAAStringSet('input.aa.fasta')
+decoy <- readAAStringSet('input.DECOY.fasta')
+
+## Run tandem repeat detectors, and parse results to reformat
+# DetectRepeats, run with or without empirical, on both aa (real pdb chain sequences) and decoy set (shuffled aa)
+DetectRepeats_wE_aa <- DetectRepeats(aa, minScore=0)
+DetectRepeats_wE_aa$seqID <- names(aa)[DetectRepeats_wE_aa$Index]
+write.table(DetectRepeats_wE_aa, '/Users/shc167/Documents/project/TR02/TR02.98/DetectRepeats_wE_aa.tsv', quote=FALSE, sep='\t', row.names = FALSE)
+
+DetectRepeats_woE_aa <- DetectRepeats(aa, minScore=0, useEmpirical=FALSE)
+DetectRepeats_woE_aa$seqID <- names(aa)[DetectRepeats_woE_aa$Index]
+write.table(DetectRepeats_woE_aa, '/Users/shc167/Documents/project/TR02/TR02.98/DetectRepeats_woE_aa.tsv', quote=FALSE, sep='\t', row.names = FALSE)
+
+DetectRepeats_wE_decoy <- DetectRepeats(decoy, minScore=0)
+DetectRepeats_wE_decoy$seqID <- names(decoy)[DetectRepeats_wE_decoy$Index]
+write.table(DetectRepeats_wE_decoy, '/Users/shc167/Documents/project/TR02/TR02.98/DetectRepeats_wE_decoy.tsv', quote=FALSE, sep='\t', row.names = FALSE)
+
+DetectRepeats_woE_decoy <- DetectRepeats(decoy, minScore=0, useEmpirical=FALSE)
+DetectRepeats_woE_decoy$seqID <- names(decoy)[DetectRepeats_woE_decoy$Index]
+write.table(DetectRepeats_woE_decoy, '/Users/shc167/Documents/project/TR02/TR02.98/DetectRepeats_woE_decoy.tsv', quote=FALSE, sep='\t', row.names = FALSE)
+
+# HHrepID
+hhrepid_64 -v 0 -plot 0 -i aa.fasta/${seqID}.fasta -d ~/.tral/data/hhrepid/dummyHMM.hmm -o HHrepID.default.aa/${seqID}.out
+
+Rscript parse_HHrepID.2.r --in_dir=out/ --out_file=out.tsv
+
+
+# RADAR (radar.py downloaded from https://raw.githubusercontent.com/ebi-wp/webservice-clients/master/python/radar.py)
+python radar.py --email shc167@pitt.edu --sequence ${seqID}.faa --title ${seqID} --outfile ${seqID} --quiet
+
+python parse_RADAR.1.py --in_dir=RADAR.out/ --out_file=RADAR.out.tsv
+
+# TRUST
+cd Align
+java -cp . nl.vu.cs.align.SelfSimilarity -fasta ${seqID}.fasta -matrix BLOSUM62 -gapo 8 -gapx 2 -o trust/ 2>&1 | tee trust/aa.out
+
+python3 parse_trust.4.py --in_file=trust/aa.out --out_file=trust/aa.tsv
+
+# T-REKS
+java -jar T-Reks.jar -similarity=0 -infile=aa.fasta | grep -v 'repeat not found in sequence' > aa.out 
+
+python3 ~/script/parse_treks.3.py --in_file=aa.out --out_file=aa.tsv
+
+
+# XSTREAM (scores: 0.00 - 1.00)
+java -Xmx1000m -Xms1000m -jar ./xstream.jar ${seqID}.fasta -i0.7 -I${score} -z -o -a${seqID}_I${score}
+
+
+## evaluate ROC
+# use DetectRepeats_wE_aa as an example. Same script applied to all TR detecting results
+Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.98/answer.tsv --path_aa=/Users/shc167/Documents/project/TR02/TR02.98/DetectRepeats_wE_aa.tsv --path_decoy=/Users/shc167/Documents/project/TR02/TR02.98/DetectRepeats_wE_decoy.tsv --path_out=/Users/shc167/Documents/project/TR02/TR02.98/ROC_DetectRepeats_wE.rds --num_cutoffs=1000 --default_score=10 --colname_seqID='seqID' --colname_start='Begin' --colname_end='End' --colname_score='Score'
+
+
+## plot ROC. For Fig1F.
+ROC_DetectRepeats_wE <- readRDS('/Users/shc167/Documents/project/TR02/TR02.98/ROC_DetectRepeats_wE.rds')
+ROC_DetectRepeats_woE <- readRDS('/Users/shc167/Documents/project/TR02/TR02.98/ROC_DetectRepeats_woE.rds')
+ROC_HHrepID <- readRDS('/Users/shc167/Documents/project/TR02/TR02.98/ROC_HHrepID.rds')
+ROC_RADAR <- readRDS('/Users/shc167/Documents/project/TR02/TR02.98/ROC_RADAR.rds')
+ROC_TRUST <- readRDS('/Users/shc167/Documents/project/TR02/TR02.98/ROC_TRUST.rds')
+ROC_TREKS <- readRDS('/Users/shc167/Documents/project/TR02/TR02.98/ROC_TREKS.rds')
+ROC_XSTREAM <- readRDS('/Users/shc167/Documents/project/TR02/TR02.98/ROC_XSTREAM.rds')
+
+decipher_Emp_col = "#e6194B"
+decipher_noemp_col = "#f58231"
+hhrepid_col = "#911eb4"
+radar_col = '#fabed4'
+trust_col = "#42d4f4"
+treks_col = "#3cb44b"
+xstream_col = "#4363d8"
+
+
+# plot
+pdf(file = "~/Documents/project/TR02/TR02.98/ROC_full.pdf", width = 5, height = 5.5)
+
+plot(c(-1,2), c(-1,2), xlab = "False Positive Rate", ylab = "True Positive Rate", xlim=c(0, 1), ylim=c(0, 1), xaxs = "i", yaxs = "i", lwd = 1, col = "black", type = "l", lty = 'dashed')
+
+# Add lines
+lines(ROC_DetectRepeats_wE$FPR, ROC_DetectRepeats_wE$TPR, col = decipher_Emp_col, type = "l", lwd = 1, lty = 1)
+lines(ROC_DetectRepeats_woE$FPR, ROC_DetectRepeats_woE$TPR, col = decipher_noemp_col, type = "l", lwd = 1, lty = 1)
+lines(ROC_HHrepID$FPR, ROC_HHrepID$TPR, col = hhrepid_col, type = "l", lwd = 1, lty = 1)
+lines(ROC_RADAR$FPR, ROC_RADAR$TPR, col = radar_col, type = "l", lwd = 1, lty = 1)
+lines(ROC_TRUST$FPR, ROC_TRUST$TPR, col = trust_col, type = "l", lwd = 1, lty = 1)
+lines(ROC_TREKS$FPR, ROC_TREKS$TPR, col = treks_col, type = "l", lwd = 1, lty = 1)
+lines(ROC_XSTREAM$FPR, ROC_XSTREAM$TPR, col = xstream_col, type = "l", lwd = 1, lty = 1)
+
+legend("bottomright", legend=c("DetectRepeats_wE", "DetectRepeats_woE","HHrepID","RADAR",  "TRUST", "T-REKS", "XSTREAM"), col=c(decipher_Emp_col, decipher_noemp_col, hhrepid_col, radar_col, trust_col, treks_col,xstream_col), cex=1, lwd = 1, pch = c(2,1,4,NA,NA,6,5),lty= 1)
+
+dev.off()
+
+
+### Zoom in ROC curves ###
+pdf(file = "~/Documents/project/TR02/TR02.98/ROC_zoom.pdf", width = 5, height = 5.5)
+
+plot(c(-1,2), c(-1,2), xlab = "False Positive Rate", ylab = "True Positive Rate", xlim=c(0, 0.015), ylim=c(0, 0.45), lwd = 1, col = "black", type = "l", yaxs = "i",lty = 'dashed')
+
+# Add lines & default point
+lines(ROC_DetectRepeats_wE$FPR, ROC_DetectRepeats_wE$TPR, col = decipher_Emp_col, type = "l", lwd = 1, lty = 1)
+points(y=ROC_DetectRepeats_wE[ROC_DetectRepeats_wE$cutoff==10,'TPR'], x=ROC_DetectRepeats_wE[ROC_DetectRepeats_wE$cutoff==10,'FPR'], col = decipher_Emp_col, cex=1, lwd = 1, pch = 2)
+
+lines(ROC_DetectRepeats_woE$FPR, ROC_DetectRepeats_woE$TPR, col = decipher_noemp_col, type = "l", lwd = 1, lty = 1)
+points(y=ROC_DetectRepeats_woE[ROC_DetectRepeats_woE$cutoff==10,'TPR'], x=ROC_DetectRepeats_woE[ROC_DetectRepeats_woE$cutoff==10,'FPR'], col = decipher_noemp_col, cex=1, lwd = 1, pch = 1)
+
+lines(ROC_HHrepID$FPR, ROC_HHrepID$TPR, col = hhrepid_col, type = "l", lwd = 1, lty = 1)
+points(y=ROC_HHrepID[ROC_HHrepID$cutoff==0.001,'TPR'], x=ROC_HHrepID[ROC_HHrepID$cutoff==0.001,'FPR'], col = hhrepid_col, cex=1, lwd = 1, pch = 4)
+
+lines(ROC_RADAR$FPR, ROC_RADAR$TPR, col = radar_col, type = "l", lwd = 1, lty = 1)
+
+lines(ROC_TRUST$FPR, ROC_TRUST$TPR, col = trust_col, type = "l", lwd = 1, lty = 1)
+
+lines(ROC_TREKS$FPR, ROC_TREKS$TPR, col = treks_col, type = "l", lwd = 1, lty = 1)
+points(y=ROC_TREKS[ROC_TREKS$cutoff==0.7,'TPR'], x=ROC_TREKS[ROC_TREKS$cutoff==0.7,'FPR'], col = treks_col, cex=1, lwd = 1, pch = 6)
+
+lines(ROC_XSTREAM$FPR, ROC_XSTREAM$TPR, col = xstream_col, type = "l", lwd = 1, lty = 1)
+points(y=ROC_XSTREAM[ROC_XSTREAM$cutoff==0.2,'TPR'], x=ROC_XSTREAM[ROC_XSTREAM$cutoff==0.2,'FPR'], col = xstream_col, cex=1, lwd = 1, pch = 5)
+
+abline(v=0.001, col="gray")
+
+dev.off()
+
+
+### Probability of detection for each tool at diff PID range (with 0.01 FPR). For Fig1G.
+library(DECIPHER)
+
+# read answer
+answer <- read.table('/Users/shc167/Documents/project/TR02/TR02.98/answer.tsv', header = TRUE, sep= "\t")
+# seq_len
+seq_len <- answer[,c('ID1', 'seq_len')]
+seq_len <- seq_len[!duplicated(seq_len),]
+seq_len <- setNames(seq_len$seq_len, seq_len$ID1)
+
+
+AvgPIDs <- c()
+for (seqID in names(seq_len)) {
+	alignment_h <- readAAStringSet(paste('/Users/shc167/Documents/project/TR02/TR02.87/cesymm-2.2.0-SNAPSHOT/alignments/', seqID, '.fas', sep=''))
+	d <- DistanceMatrix(alignment_h, includeTerminalGaps = TRUE, method = 'longest', verbose=FALSE)
+	PIDs <- 1- d[upper.tri(d, diag = FALSE)]
+	AvgPIDs <- c(AvgPIDs, mean(PIDs))
+} 
+names(AvgPIDs) <- names(seq_len)
+saveRDS(AvgPIDs, file='/Users/shc167/Documents/project/TR02/TR02.98/AvgPIDs.rds')
+
+
+AvgPIDs_quantile <- quantile(AvgPIDs, seq(0, 1, length.out=11))
+#         0%        10%        20%        30%        40%        50% 
+# 0.00000000 0.08333333 0.10484252 0.12628327 0.14837974 0.17259640 
+#        60%        70%        80%        90%       100% 
+# 0.20535714 0.24444444 0.31426183 0.44117647 1.00000000 
+
+
+# seperate ranges
+AvgPIDs_h <- AvgPIDs
+bins_aa <- list()
+for (bin_upperbound in AvgPIDs_quantile[c(2:11)]) {
+	print(bin_upperbound)
+	bins_aa[[as.character(bin_upperbound)]] <- AvgPIDs_h[AvgPIDs_h<=bin_upperbound]
+	print(length(bins_aa[[as.character(bin_upperbound)]]))
+	AvgPIDs_h <- AvgPIDs_h[AvgPIDs_h>bin_upperbound]
+}
+
+saveRDS(bins_aa, file='/Users/shc167/Documents/project/TR02/TR02.98/bins_aa.rds')
+lengths(bins_aa)
+# 0.0833333333333334  0.104842519060323  0.126283265224758 
+#                 50                 50                 49 
+#  0.148379743918897  0.172596400398703  0.205357142857143 
+#                 50                 49                 50 
+#  0.244444444444444   0.31426182513139  0.441176470588235 
+#                 51                 48                 50 
+#                  1 
+#                 49 
+
+
+# list of answer
+list_answer <- list()
+for (seqID_h in names(seq_len)) {
+	list_answer[[seqID_h]] <- numeric(seq_len[seqID_h])
+	for (row_i in rownames(answer[answer$ID1==seqID_h,])) {
+		list_answer[[seqID_h]][answer[row_i,'begin_label']:answer[row_i,'end_label']] <- 1
+	}
+}
+
+get_prob_mt <- function(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname, colname_seqID='seqID', colname_start='start', colname_end='end') {
+	for (range_i in names(bins_aa)) {
+		bin_i <- bins_aa[[range_i]]
+		hits_prob <- c()
+		for (seqID_h in names(bin_i)) {
+			predict_h <- numeric(length(list_answer[[seqID_h]]))
+			for (row_i in rownames(predict[predict[,colname_seqID]==seqID_h,])) {
+				predict_h[predict[row_i,colname_start]:predict[row_i,colname_end]] <- 1
+			}
+			hits_prob <- c(hits_prob, as.numeric(list_answer[[seqID_h]] %*% predict_h) / sum(list_answer[[seqID_h]]))
+			#hits_prob <- c(hits_prob, ifelse(as.numeric(list_answer[[seqID_h]] %*% predict_h) >= 1, 1, 0))
+		}
+		prob_mt[prob_mt_rowname,range_i] <- mean(hits_prob)
+	}
+	return(prob_mt)
+}
+
+
+
+
+# DetectRepeats (w/ empirical)
+# Tool	cutoff	TPR		FPR
+# wE	9.699917	0.248243229	0.002016129
+# woE	6.930345	0.205826209	0.002016129
+# HHrepID	3.4e-10	0.2487977	0.0011587203
+# RADAR	807.81	0.003951486	0.001532434
+# TRUST	398.1390	0.059340291	0.0018330741
+# T-REKS	0.857143	0.036373083	0.0012398644
+# XSTREAM	0.08	0.03742094	0.0010179853
+# read prediction, compute prob values, fill into prob_mt
+prob_mt <- matrix(, nrow = 7, ncol = 10)
+rownames(prob_mt) <- c('DRwE', 'DRwoE', 'HHrepID', 'RADAR', 'TRUST', 'TReks', 'XSTREAM')
+colnames(prob_mt) <- names(bins_aa)
+
+predict <- read.table('/Users/shc167/Documents/project/TR02/TR02.98/DetectRepeats_wE_aa_3.2.0.tsv', header = TRUE, sep= "\t")
+predict <- predict[predict$Score>=9.699917,]
+prob_mt <- get_prob_mt(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname='DRwE', colname_seqID='seqID', colname_start='Begin', colname_end='End')
+
+predict <- read.table('/Users/shc167/Documents/project/TR02/TR02.98/DetectRepeats_woE_aa_3.2.0.tsv', header = TRUE, sep= "\t")
+predict <- predict[predict$Score>=6.930345,]
+prob_mt <- get_prob_mt(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname='DRwoE', colname_seqID='seqID', colname_start='Begin', colname_end='End')
+
+predict <- read.table('/Users/shc167/Documents/project/TR02/TR02.72/HHrepID.aa.tsv', header = TRUE, sep= "\t")
+predict <- predict[predict$P.value<=3.4e-10,]
+prob_mt <- get_prob_mt(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname='HHrepID', colname_seqID='seqID', colname_start='start', colname_end='end')
+
+predict <- read.table('/Users/shc167/Documents/project/TR02/TR02.93/RADAR.TPout.tsv', header = TRUE, sep= "\t")
+predict <- predict[predict$score>=807.81,]
+prob_mt <- get_prob_mt(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname='RADAR', colname_seqID='seqID', colname_start='start', colname_end='end')
+
+predict <- read.table('~/Documents/project/TR02/TR02.98/TRUST_aa.tsv', header = TRUE, sep= "\t")
+predict <- predict[predict$score1>=398.1390,]
+prob_mt <- get_prob_mt(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname='TRUST', colname_seqID='seqID', colname_start='start', colname_end='end')
+
+predict <- read.table('/Users/shc167/Documents/project/TR02/TR02.05/T-REKS.aa.tsv', header = TRUE, sep= "\t")
+predict <- predict[predict$score>=0.857143,]
+prob_mt <- get_prob_mt(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname='TReks', colname_seqID='seqID', colname_start='start', colname_end='end')
+
+predict <- read.csv('~/Documents/project/TR02/TR02.04/run3/XSTREAM_Input_i0.7_g3_m5_e2.0_chart.xls', header = TRUE, sep= "\t")
+predict <- predict[predict$consensus.error<=0.08,]
+prob_mt <- get_prob_mt(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname='XSTREAM', colname_seqID='identifier', colname_start='start', colname_end='end')
+
+saveRDS(prob_mt, '/Users/shc167/Documents/project/TR02/TR02.98/prob_mt.rds')
+
+decipher_Emp_col = "#e6194B"
+decipher_noemp_col = "#f58231"
+hhrepid_col = "#911eb4"
+radar_col = '#fabed4'
+trust_col = "#42d4f4"
+treks_col = "#3cb44b"
+xstream_col = "#4363d8"
+tral_col = "#800000"
+
+AvgPIDs_quantile_mid <- AvgPIDs_quantile[-length(AvgPIDs_quantile)] + diff(AvgPIDs_quantile)/2
+
+pdf(file = "~/Documents/project/TR02/TR02.98/prob_detection_11212024.pdf", width = 5, height = 5)
+
+par(mar = c(5, 4, 4, 4) + 0.3)
+hist(AvgPIDs, ylab="Number of PDB chains [histogram]", xaxt='n', xlab="Average repeat PID in structural benchmark (%)")
+axis(side=1, at = pretty(range(0,1)))
+
+par(new = TRUE)
+plot(NULL, xlim=c(0,1), ylim=c(0,1), xaxt='n', yaxt='n', ann=FALSE)
+abline(v = AvgPIDs_quantile, lty=2, col='grey')
+axis(side=4, at = pretty(range(0,1)))
+mtext("Probability of detection (%) [points]",side=4,line=3) 
+
+lines(y=prob_mt['DRwE',], x=AvgPIDs_quantile_mid, col = decipher_Emp_col, type = "l", lwd = 1, lty = 1)
+points(y=prob_mt['DRwE',], x=AvgPIDs_quantile_mid, col = decipher_Emp_col, cex=1, lwd = 1, pch = 2)
+
+lines(y=prob_mt['DRwoE',], x=AvgPIDs_quantile_mid, col = decipher_noemp_col, type = "l", lwd = 1, lty = 1)
+points(y=prob_mt['DRwoE',], x=AvgPIDs_quantile_mid, col = decipher_noemp_col, cex=1, lwd = 1, pch = 1)
+
+lines(y=prob_mt['HHrepID',], x=AvgPIDs_quantile_mid, col = hhrepid_col, type = "l", lwd = 1, lty = 1)
+points(y=prob_mt['HHrepID',], x=AvgPIDs_quantile_mid, col = hhrepid_col, cex=1, lwd = 1, pch = 4)
+
+lines(y=prob_mt['RADAR',], x=AvgPIDs_quantile_mid, col = radar_col, type = "l", lwd = 1, lty = 1)
+points(y=prob_mt['RADAR',], x=AvgPIDs_quantile_mid, col = radar_col, cex=1, lwd = 1, pch = 8)
+
+lines(y=prob_mt['TRUST',], x=AvgPIDs_quantile_mid, col = trust_col, type = "l", lwd = 1, lty = 1)
+points(y=prob_mt['TRUST',], x=AvgPIDs_quantile_mid, col = trust_col, cex=1, lwd = 1, pch = 3)
+
+lines(y=prob_mt['TReks',], x=AvgPIDs_quantile_mid, col = treks_col, type = "l", lwd = 1, lty = 1)
+points(y=prob_mt['TReks',], x=AvgPIDs_quantile_mid, col = treks_col, cex=1, lwd = 1, pch =6)
+
+lines(y=prob_mt['XSTREAM',], x=AvgPIDs_quantile_mid, col = xstream_col, type = "l", lwd = 1, lty = 1)
+points(y=prob_mt['XSTREAM',], x=AvgPIDs_quantile_mid, col = xstream_col, cex=1, lwd = 1, pch = 5)
+
+dev.off()

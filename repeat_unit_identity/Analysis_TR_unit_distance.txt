@@ -1,0 +1,98 @@
+Analysis_TR_unit_distance.txt
+
+Shu-Ting Cho <shutingcho@pitt.edu>
+
+# Distances among tandem repeat units for each Kgroup
+
+# Task: Get unit distances and make plots
+# 1. Detect tandem repeat in prokaryotic and eukaryotic Kgroups
+# 2. Calculate unit distances
+# 3. Plot
+
+
+# Input file (these files are available upon request)
+# prok_Kgroup_faa/*.faa.gz
+# prok_Kgroup_msa/*.msa
+# euk_Kgroup_faa/*.faa.gz
+# prok_Kgroup_msa/*.msa
+
+
+# Run DetectRepeats for the input sequences (*.faa.gz) using the script DECIPHER_DetectRepeats.10.r
+Rscript DECIPHER_DetectRepeats.10.r ${seqID} 8 1
+# input:
+# prok_Kgroup_faa/${seqID}.faa.gz
+# euk_Kgroup_faa/${seqID}.faa.gz
+# output:
+# ${seqID}.tr
+
+# Calculate unit distances using the script TR_dist.15.r
+Rscript TR_dist.15.r ${seqID} > ${seqID}.log
+# input:
+# ${seqID}.tr
+# prok_Kgroup_msa/${seqID}.msa # generated using AlignSeqs() in DECIPHER
+# output:
+# ${seqID}.dist
+# ${seqID}.copyn
+# ${seqID}.log
+
+# Collect results
+# Notes below use prokaryotic Kgroup, minScore=8 as an example. Same process applies to eukaryotic Kgroups and other scores used.
+cd prok_TR_dist_minScore8/logs # go to logs directory
+grep 'include' *.out | cut -d $'\t' -f 2-9 | sort -k 1 -u > ~/project/TR02/TR02.100/prok_TR_dist_minScore8.tsv
+
+# load it in R
+prok_TR_dist_minScore8 <- read.table('~/Documents/project/TR02/TR02.100/prok_TR_dist_minScore8.tsv', row.names=1)
+colnames(prok_TR_dist_minScore8) <- c("count_seq","count_all_TR","count_10","count_overlap","count_cons","mode_unit_len","mode_copy_number")
+
+# make matrix for heatmap
+dist_dir <- '~/Documents/project/TR02/TR02.100/prok_TR_dist_minScore8/'
+prok_TR_PID_minScore8_mt <- matrix(ncol = 11, nrow = nrow(prok_TR_dist_minScore8))
+rownames(prok_TR_PID_minScore8_mt) <- rownames(prok_TR_dist_minScore8)
+colnames(prok_TR_PID_minScore8_mt) <- c(seq(from = 0.1, to = 1, by = 0.1), 'median')
+Kgroups <- rownames(prok_TR_dist_minScore8)
+prok_TR_PID_minScore8_vec <- c()
+for (i in seq_along(Kgroups)) {
+	Kgroup_h <- Kgroups[i]
+  dist_h <- readRDS(paste(dist_dir, Kgroup_h, '.dist', sep=''))
+  PID_h <- 1-dist_h
+  prok_TR_PID_minScore8_vec <- c(prok_TR_PID_minScore8_vec, PID_h)
+	res <- hist(PID_h, breaks = seq(from = 0, to = 1, by = 0.1), right=TRUE, plot = FALSE) # the histogram cells are right-closed (left open) intervals.
+	prok_TR_PID_minScore8_mt[Kgroup_h,] <- c(res$counts/sum(res$counts), median(PID_h))
+	cat(i,Kgroup_h,'\n',sep='\t')
+}
+
+# plot heatmap for fig6A
+library('RColorBrewer')
+colMain <- colorRampPalette(brewer.pal(9, "Blues"), bias = 1.5)(100)
+
+# sort row by median
+prok_TR_PID_minScore8_mt <- prok_TR_PID_minScore8_mt[order(prok_TR_PID_minScore8_mt[,'median'],decreasing=FALSE),]
+pdf(file = "~/Documents/project/TR02/TR02.100/prok_TR_dist_minScore8.1.pdf", width = 5, height = 5)
+heatmap(t(prok_TR_PID_minScore8_mt[,c(1:10)]), scale='none', Rowv=NA, Colv=NA, col=colMain, main='prok_TR_dist_minScore8')
+dev.off()
+
+## plot eCDF, for supplementary figure 1
+plot(ecdf(prok_TR_PID_minScore5_vec*100), verticals=TRUE, pch=NA, col="#e6194B", xlim=c(0, 100), ylab="Empirical cumulative distribution", xlab="Tandem repeat units' identities (%)", main=NA)
+plot(ecdf(prok_TR_PID_minScore8_vec*100), verticals=TRUE, pch=NA, col="#f58231", add=TRUE)
+plot(ecdf(prok_TR_PID_minScore10_vec*100), verticals=TRUE, pch=NA, col="#3cb44b", add=TRUE)
+plot(ecdf(prok_TR_PID_minScore12_vec*100), verticals=TRUE, pch=NA, col="#4363d8", add=TRUE)
+plot(ecdf(prok_TR_PID_minScore15_vec*100), verticals=TRUE, pch=NA, col="#911eb4", add=TRUE)
+legend("bottomright", c("minScore=5", "minScore=8", "minScore=10", "minScore=12", "minScore=15"), lty=1, bty = "n", col=c("#e6194B", "#f58231", "#3cb44b", "#4363d8", "#911eb4"), inset=0.05)
+
+
+
+
+## Unit distances distribution of K00689, for fig6B
+MSA_dir <- 'pro_Kgroup_msa/'
+faa_dir <- 'pro_Kgroup_faa/'
+dist_dir <- '~/Documents/project/TR02/TR02.73/pro_Kgroup_copyn/'
+tr_dir <- 'pro_Kgroup_tr.2/'
+
+Kgroup_h <- 'K00689'
+MSA_h <- readRDS(paste(MSA_dir, Kgroup_h, '.msa', sep=''))
+faa_h <- readAAStringSet(paste(faa_dir, Kgroup_h, '.faa.gz', sep=''))
+TR_h <- readRDS(paste(tr_dir, Kgroup_h, '.tr', sep=''))
+
+# histogram
+dist_h <- readRDS(paste(dist_dir, Kgroup_h, '.dist', sep=''))
+hist(dist_h, xlim = c(0,1), breaks = seq(from = 0, to = 1, by = 0.1), main=paste('TR unit distances of ', Kgroup_h, " \n(score:", round(mean(TR_h$Score)), "; unit_len:", pro_Kgroup_copyn[Kgroup_h, 'mode_unit_len'], "; copy_num:", pro_Kgroup_copyn[Kgroup_h, 'mode_copy_number'], ")", sep=''))

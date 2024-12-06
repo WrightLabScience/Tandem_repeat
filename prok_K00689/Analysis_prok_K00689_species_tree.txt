@@ -1,0 +1,69 @@
+Analysis_prok_K00689_species_tree.txt
+
+Shu-Ting Cho <shutingcho@pitt.edu>
+
+# Prokaryotic gene K00689 tandem repeat analysis
+
+# Task: Make species tree for genomes included in this analysis
+# 0. Collect 16S, rpoB, rpoC gene sequences
+# 1. Make multiple sequence alignment
+# 2. Make tree
+
+# input file
+# /Users/shc167/GitHub_repo/TR_MS/prok_K00689/proK00689_16S.fna
+# /Users/shc167/GitHub_repo/TR_MS/prok_K00689/proK00689_rpoB.fna
+# /Users/shc167/GitHub_repo/TR_MS/prok_K00689/proK00689_rpoC.fna
+
+# load library
+library(DECIPHER)
+
+##### make species tree #####
+# Paenibacillus beijingensis ASM96109v1 (GCF_000961095.1)
+# 16S VN24_RS03370
+proK00689_16Snt <- readDNAStringSet('/Users/shc167/GitHub_repo/TR_MS/prok_K00689/proK00689_16S.fna')
+proK00689_16Snt <- RNAStringSet(proK00689_16Snt) # align rRNA in RNA space
+proK00689_16Snt_msa <- AlignSeqs(proK00689_16Snt)
+proK00689_16Snt_msa <- DNAStringSet(proK00689_16Snt_msa)
+
+# rpoB VN24_RS12600
+proK00689_rpoBnt <- readDNAStringSet('/Users/shc167/GitHub_repo/TR_MS/prok_K00689/proK00689_rpoB.fna')
+proK00689_rpoBnt <- proK00689_rpoBnt[names(proK00689_16Snt)]
+proK00689_rpoBnt_msa <- AlignTranslation(proK00689_rpoBnt)
+
+# rpoC VN24_RS12605
+proK00689_rpoCnt <- readDNAStringSet('/Users/shc167/GitHub_repo/TR_MS/prok_K00689/proK00689_rpoC.fna')
+proK00689_rpoCnt <- proK00689_rpoCnt[names(proK00689_16Snt)]
+proK00689_rpoCnt_msa <- AlignTranslation(proK00689_rpoCnt)
+
+# concat 16S rpoB rpoC MSAs
+proK00689_16SrpoBCnt_MSA.3 <- DNAStringSet(paste0(as.character(proK00689_16Snt_msa), as.character(proK00689_rpoBnt_msa[names(proK00689_16Snt_msa)]), as.character(proK00689_rpoCnt_msa[names(proK00689_16Snt_msa)]))) # width 9096
+names(proK00689_16SrpoBCnt_MSA.3) <- names(proK00689_16Snt_msa)
+writeXStringSet(proK00689_16SrpoBCnt_MSA.3, '/Users/shc167/GitHub_repo/TR_MS/prok_K00689/proK00689_16SrpoBCnt_MSA.3.fna')
+
+
+# make tree
+packageVersion('DECIPHER')
+[1] ‘2.28.0’
+proK00689_16SrpoBCnt_ML.3 <- TreeLine(myXStringSet=proK00689_16SrpoBCnt_MSA.3, method="ML", cutoff=0.05) # The selected model was:  GTR+G4
+WriteDendrogram(proK00689_16SrpoBCnt_ML.3, file = '/Users/shc167/GitHub_repo/TR_MS/prok_K00689/proK00689_16SrpoBCnt_ML.3.tree')
+
+# plot tree
+par(mfrow = c(1, 1), mar=c(0,0,1,10))
+plot(dendrapply(proK00689_16SrpoBCnt_ML.3,
+	function(x) {
+		s <- attr(x, "probability") # choose "probability" (aBayes) or "support"
+		if (!is.null(s) && !is.na(s)) {
+			s <- formatC(as.numeric(s), digits=2, format="f")
+			attr(x, "edgetext") <- paste(s, "\n")
+		}
+		attr(x, "edgePar") <- list(p.col=NA, p.lwd=1e-5, t.col="#CC55AA", t.cex=0.7)
+		if (is.leaf(x))
+			attr(x, "nodePar") <- list(lab.font=3, pch=NA)
+		x
+	}),
+	horiz=TRUE,
+	yaxt='n',
+    main='proK00689_16SrpoBCnt_ML.3')
+# add a scale bar
+arrows(0.65, 0, 0.55, 0, code=3, angle=90, len=0.05, xpd=TRUE)
+text(0.6, 0, "0.1 subs./site", pos=3, xpd=TRUE)

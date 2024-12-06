@@ -1,0 +1,125 @@
+Analysis_prok_K00689_units.txt
+
+Shu-Ting Cho <shutingcho@pitt.edu>
+
+# Prokaryotic gene K00689 tandem repeat analysis
+
+## Figure S2. Tandem repeat units in gene K00689 were classified into twelve groups.
+
+# Task: Make repeat unit tree
+# 0. manually define unit
+# 0.1. look at tandem repeat regions in the gene MSA
+# 0.2. pick the tandem repeat goes to the leftmost in gene MSA and has good unit MSA: the whole range of the first unit is aligned with the rest units
+# 0.3. select one reference unit: RYFDQHNGNAVTNTFIADKTGHWYYLGKDGVAVTGAQTVGKQKLYFEANGQQVKGDFVTSDEGKL
+# 0.4. manually define units, remove partial units (<70% consensus unit length)
+# 0.5. save manually defined unit sequences as the input fasta file
+# 1. Make repeat unit multiple sequence alignment
+# 2. Make repeat unit tree and distance matrix
+# 3. Cluster units
+
+# input file
+# /Users/shc167/GitHub_repo/TR_MS/prok_K00689/prok_K00689_units_rmp.fasta
+
+# load library
+library(DECIPHER)
+library(dendextend)
+library(RColorBrewer)
+library(ggplot2)
+
+# get unit MSA
+prok_K00689_units_seq <- readAAStringSet('/Users/shc167/GitHub_repo/TR_MS/prok_K00689/prok_K00689_units_rmp.fasta') # 125 unit seqs
+prok_K00689_units_MSA <- AlignSeqs(prok_K00689_units_seq)
+BrowseSeqs(prok_K00689_units_MSA)
+
+# make tree
+prok_K00689_units_d <- DistanceMatrix(prok_K00689_units_MSA, includeTerminalGaps = FALSE, penalizeGapLetterMatches = NA, type="dist")
+prok_K00689_units_ML <- TreeLine(myXStringSet=prok_K00689_units_MSA, myDistMatrix=prok_K00689_units_d, method="ML", cutoff=0.05, processors=1) # model chosen: WAG+G4
+
+# get TR unit order number for coloring
+TRunitIds <- numeric(length(labels(prok_K00689_units_ML)))
+for (i in c(1:6)) {
+    TRunitIds[endsWith(labels(prok_K00689_units_ML), as.character(i))] <- i
+}
+
+# unit number color code
+cols_6 <- brewer.pal(6, "Dark2")
+col_TRunitIds <- cols_6[TRunitIds]
+labels_colors(prok_K00689_units_ML) <- col_TRunitIds
+
+# plot tree
+par(mfrow = c(1, 1), mar=c(2,1,1,5))
+prok_K00689_units_ML <- sort(prok_K00689_units_ML) # sort tree
+plot(prok_K00689_units_ML, horiz=TRUE)
+
+# write tree to Newick
+WriteDendrogram(prok_K00689_units_ML, '/Users/shc167/GitHub_repo/TR_MS/prok_K00689/prok_K00689_TR_units_ML.tree')
+
+# sort MSA and write to fasta
+prok_K00689_units_MSA <- prok_K00689_units_MSA[rev(labels(prok_K00689_units_ML))]
+writeXStringSet(prok_K00689_units_MSA, '/Users/shc167/GitHub_repo/TR_MS/prok_K00689/prok_K00689_TR_units_MSA.fasta')
+
+
+# distance matrix for plotting heatmap
+d <- DistanceMatrix(prok_K00689_units_MSA[labels(prok_K00689_units_ML)], includeTerminalGaps = FALSE, penalizeGapLetterMatches = NA, verbose=FALSE)
+d[lower.tri(d, diag=TRUE)] <- NA
+d[nrow(d),1] <- 0
+d[nrow(d),2] <- 1
+
+# matrix of distance values
+values <- round(d*100, digits = 0)
+df <- data.frame(
+  row = rep(1:nrow(values), ncol(values)),
+  col = rep(1:ncol(values), each = nrow(values)),
+  value = as.vector(values)
+)
+
+# plot heatmap
+ggplot(df, aes(x = col, y = row, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient(low = "#1b98e0", high = "white", na.value = "white")+
+  scale_y_reverse()+
+  theme_minimal()+
+  theme(axis.ticks = element_blank(),axis.text = element_blank(), axis.title=element_blank())
+
+
+# TR units were then clustered into 12 groups based on unit tree branch support (>85%)
+
+
+
+
+## Figure 6C: An example of units MSA + PID matrix
+# WP_150881027
+WP_150881027_msa <- prok_K00689_units_MSA[startsWith(names(prok_K00689_units_MSA),'WP_150881027')]
+
+# re-align unit sequences
+WP_150881027_msa <- AlignSeqs(RemoveGaps(WP_150881027_msa))
+
+# set MSA color scheme
+colors <- c(`-`="#000000", `A`="#BDB1E8", `R`="#EFA2C5", `N`="#F6602F",
+    `D`="#FD5559", `C`="#12C7FE", `Q`="#DDACB4", `E`="#FEA097", `G`="#F46802",
+    `H`="#FCA708", `I`="#369BD9", `L`="#2E95EC", `K`="#CF7690", `M`="#4B8EFE",
+    `F`="#76997D", `P`="#FD2AE3", `S`="#A08A9A", `T`="#9A84D5", `W`="#74C80D",
+    `Y`="#9BB896", `V`="#89B9F9")
+BrowseSeqs(WP_150881027_msa, colors=colors, patterns=names(colors))
+
+# get distance matrix
+d <- DistanceMatrix(WP_150881027_msa, includeTerminalGaps = FALSE, penalizeGapLetterMatches = NA, verbose=FALSE)
+d[lower.tri(d, diag=TRUE)] <- NA
+d[nrow(d),1] <- 0
+d[nrow(d),2] <- 1
+
+# Create a matrix of values
+values <- 100-round(d*100, digits = 0)
+df <- data.frame(
+  row = rep(1:nrow(values), ncol(values)),
+  col = rep(1:ncol(values), each = nrow(values)),
+  value = as.vector(values)
+)
+# Create the heatmap using ggplot2
+ggplot(df, aes(x = col, y = row, fill = value)) +
+  geom_tile() +
+  geom_text(aes(label = value)) +
+  scale_fill_gradient(low = "white", high = "#1b98e0", na.value = "white")+
+  scale_y_reverse()+
+  theme_minimal()+
+  theme(legend.position="none", axis.ticks = element_blank(),axis.text = element_blank(), axis.title=element_blank())
