@@ -1,5 +1,7 @@
 # Tandem_repeat
 
+Notes, scripts, and data used in the tandem repeat manuscript.
+
 
 model
 ---
