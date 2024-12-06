@@ -1,0 +1,23 @@
+Analysis_orthology_benchmark.txt
+
+Shu-Ting Cho <shutingcho@pitt.edu>
+
+# Benchmark sequence based tandem repeat detectors on orthologous sequences
+# Fig3C
+
+# step1: Multiple sequence alignment
+# step2: Run TR detecting tools and parsing the results
+# step3: Compute consistency
+
+# load library
+library(DECIPHER)
+
+
+## prepare storeData
+# MSA for each Kgroup, aa are nt
+Rscript DECIPHER_MSA.5.r ${seqID}.fas.gz ${seqID}.aa.msa aa
+
+# check each MSA, count number of pairs in PID range
+# input: ${Kgroup}.aa.msa, ${Kgroup}.nt.msa,
+Rscript consist_storeData.4.r ${seqID} 0.5 0.6 ./
+

@@ -1,43 +1,41 @@
-# To generate figure 2BCDEFG
-## Structural benchmark
+# Tandem_repeat
 
-Step 0:
+
+model
 ---
-Source data:
- - 496 PDB chain sequences with structural tandem repeats (average TM-score > 0.7) detected by CE-Symm
+Figure 1BCDEF
 
-Files:
- - input.aa.fasta
- - answer.tsv
 
-Step 1:
+benchmark_structural
 ---
-Run TR detecting tools and parsing the results
+Figure 2BCDEFG
 
-Notes:
- - Analysis_structural_benchmark.txt
 
-Scripts:
- - parse_HHrepID.2.r
- - parse_MREPS.1.py
- - parse_RADAR.1.py
- - parse_TRF.1.py
- - parse_treks.3.py
- - parse_trust.4.py
-	 
-Step 2:
+benchmark_orthology
 ---
-Compute TPR and FPR and plot
-
-Notes:
- - Analysis_structural_benchmark.txt
-
-Scripts:
- - eval_ROC.3.r
+Figure 3CD
 
 
-Show an example
+enrichment_taxonomy
 ---
+Figure 4A
 
-Notes:
- - Analysis_4CNL_example.txt
+
+enrichment_function
+---
+Figure 4B
+
+
+enrichment_genomic_region
+---
+Figure 5
+
+
+repeat_unit_identity
+---
+Figure 6AB, S1
+
+
+prok_K00689
+---
+Figure 6CD, S2
