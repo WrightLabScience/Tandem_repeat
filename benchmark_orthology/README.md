@@ -22,7 +22,12 @@ Multiple sequence alignment
 
 Store sequence pairs in 50% ~ 60% PID range
 
-File paths: \
+Select Kgroup with >= 500 n pairs
+
+File paths:
+ - Kgroup_ge500.txt
+ - pairs/ (can be provided upon request)
+
 Notes: 
  - Analysis_orthology_benchmark.txt
    - input: Kgroup aa and nt fasta
@@ -36,14 +41,8 @@ Step 2:
 ---
 Run TR detecting tools and parsing the results
 
-
-File paths:
- - Kgroup_ge500.txt
-
-
 Notes: 
  - Analysis_orthology_benchmark.txt
-
 
 Scripts:
  - DECIPHER_DetectRepeats.20.r
