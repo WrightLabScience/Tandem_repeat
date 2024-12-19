@@ -16,17 +16,20 @@ File paths: (sequence files are too large, can be provided upon request)
 
 Step 1:
 ---
-Multiple sequence alignment \
-DECIPHER::AlignSeqs() for aa \
-DECIPHER::AlignTranslate() for nt 
+Multiple sequence alignment
+ - DECIPHER::AlignSeqs() for aa
+ - DECIPHER::AlignTranslate() for nt 
+
+Store sequence pairs in 50% ~ 60% PID range
 
 File paths: \
 Notes: 
- - prepare_storeData.txt (TR02.94.txt)
+ - Analysis_orthology_benchmark.txt
    - input: Kgroup aa and nt fasta
-   - output: t_aa.msa, mt_nt.msa, pairs
+   - output: msa, pairs
 
 Scripts:
+ - DECIPHER_MSA.5.r
  - consist_storeData.4.r
 	 
 Step 2:
@@ -35,26 +38,29 @@ Run TR detecting tools and parsing the results
 
 
 File paths:
+ - Kgroup_ge500.txt
 
 
 Notes: 
- - run_parse_DetectRepeats.txt (TR02.99.txt)
- - run_parse_HHrepID.txt (TR02.95.txt)
- - run_parse_RADAR.txt (TR02.95.txt)
- - run_parse_TRUST.txt (TR02.95.txt)
- - run_parse_TREKS.txt (TR02.95.txt)
- - run_parse_XSTREAM.txt (TR02.95.txt)
- - run_parse_TRF.txt (TR02.95.txt)
- - run_parse_mrepstxt (TR02.95.txt)
+ - Analysis_orthology_benchmark.txt
+
 
 Scripts:
+ - DECIPHER_DetectRepeats.20.r
  - parse_HHrepID.2.r
+ - parse_RADAR.1.py
+ - parse_trust.4.py
+ - parse_treks.3.py
+ - parse_TRF.1.py
+ - parse_MREPS.1.py
 
 
 Step 3:
 ---
-Compute consistency
+Compute consistency and plot
 
+Notes: 
+ - Analysis_orthology_benchmark.txt
 
 Scripts:
  - consist_all.3.r

@@ -14,10 +14,138 @@ library(DECIPHER)
 
 
 ## prepare storeData
-# MSA for each Kgroup, aa are nt
+# MSA for each Kgroup, aa or nt
 Rscript DECIPHER_MSA.5.r ${seqID}.fas.gz ${seqID}.aa.msa aa
 
-# check each MSA, count number of pairs in PID range
+# check each MSA, count number of pairs in PID range 50% ~ 60%
 # input: ${Kgroup}.aa.msa, ${Kgroup}.nt.msa,
 Rscript consist_storeData.4.r ${seqID} 0.5 0.6 ./
 
+# list of Kgroup to be included in the benchmark
+# choose Kgroup with > Q3 n pairs (522)
+summary(consist_storeData.4$n_pairs)
+  #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  #   1.0    99.0   242.5   392.6   522.0  3512.0 
+
+Kgroup_ge500 <- rownames(consist_storeData.4[consist_storeData.4$n_pairs >= 500,])
+length(Kgroup_ge500)
+[1] 5076
+saveRDS(Kgroup_ge500, "Kgroup_ge500.rds")
+writeLines(Kgroup_ge500, "Kgroup_ge500.txt")
+
+
+## Run tandem repeat detectors, and parse results to reformat
+# DetectRepeats, run with or without empirical, on both aa and nt seqs
+Rscript DECIPHER_DetectRepeats.20.r ${seqID}.fas.gz ${seqID}.wEtr ${seqID}.woEtr aa
+Rscript DECIPHER_DetectRepeats.20.r ${seqID}.fas.gz ${seqID}.wEtr ${seqID}.woEtr nt
+
+
+# HHrepID
+hhrepid_64 -v 0 -plot 0 -i aa.fasta/${seqID}.fasta -d ~/.tral/data/hhrepid/dummyHMM.hmm -o HHrepID.default.aa/${seqID}.out
+Rscript parse_HHrepID.2.r --in_dir=out/ --out_file=out.tr
+
+
+# RADAR (radar.py downloaded from https://raw.githubusercontent.com/ebi-wp/webservice-clients/master/python/radar.py)
+python radar.py --email shc167@pitt.edu --sequence ${seqID}.faa --title ${seqID} --outfile ${seqID} --quiet
+python parse_RADAR.1.py --in_dir=radar/ --out_file=radar/${seqID}.tr
+
+
+# TRUST
+cd Align
+java -cp . nl.vu.cs.align.SelfSimilarity -fasta ${seqID}.fasta -matrix BLOSUM62 -gapo 8 -gapx 2 -o trust/ 2>&1 | tee trust/${seqID}.out
+python parse_trust.4.py --in_file=trust/${seqID}.out --out_file=trust/${seqID}.tr
+
+
+# T-REKS
+java -jar T-Reks.jar -similarity=0 -infile=${seqID}.fasta | grep -v 'repeat not found in sequence' > ${seqID}.out 
+python parse_treks.3.py --in_file=${seqID}.out --out_file=${seqID}.tr
+
+
+# XSTREAM
+java -Xmx1000m -Xms1000m -jar XSTREAM/xstream.jar ${seqID}.fas -i0.7 -I0 -z -o -a${seqID} # for aa
+java -Xmx1000m -Xms1000m -jar XSTREAM/xstream.jar ${seqID}.fas -n -i0.8 -I0 -z -o -a${seqID} # for nt
+
+
+# Tandem Repeat Finder (TRF)
+TRF-4.09.1/build/src/trf Kgroup/nt/${seqID}.fas 2 7 7 80 10 0 10000 -d -h -ngs > ${seqID}.TRFout;
+python parse_TRF.1.py --in_file=${seqID}.TRFout --out_file=TRF.ortho_nt.out/${seqID}.tr
+
+
+# mreps
+mreps/mreps -noprint -res 50 -fasta Kgroup/nt/${seqID}.fas > ${seqID}.mreps_out;
+python parse_MREPS.1.py --in_file=${seqID}.mreps_out --out_file=mreps.ortho_nt.out/${seqID}.tr
+
+
+
+# calculate consistency at different score cutoffs
+# select 1000 score cutoffs using quantile() in R.
+# use DetectRepeats_wE_aa as an example. Same script applied to all TR detecting results
+Rscript consist_all.3.r --Kgroup_list=Kgroup_ge500.rds --mt_MSA_dir=mt_MSA_aa/ --pairs_dir=pairs/ --DetectRepeat_dir=DetectRepeats_wE_aa/ --tr_ext='.wEtr' --pair_ext='_pairs.rds' --msa_ext='_mt_MSA_aa.rds' --score=${score} --out_tsv=${score}.tsv
+
+
+
+######## processing and plot ########
+preproc_consist <- function(consist_out.tsv) {
+	consist_out <- read.table(consist_out.tsv, sep='\t')
+	colnames(consist_out) <- c('score', 'frac_repeat_all', 'ci_lb', 'avg', 'ci_ub')
+	consist_out[,c('frac_repeat_all', 'ci_lb', 'avg', 'ci_ub')] <- consist_out[,c('frac_repeat_all', 'ci_lb', 'avg', 'ci_ub')]*100
+	consist_out <- consist_out[order(consist_out$score),]
+	return(consist_out)
+}
+
+plot_consist <- function(consist_out, col_ci, col_avg, default_score=NA, pch_h=1) {
+	polygon(c(rev(consist_out$frac_repeat_all), consist_out$frac_repeat_all), c(rev(consist_out$ci_ub), consist_out$ci_lb), col=col_ci, border = NA)
+	lines(x = consist_out$frac_repeat_all, y = consist_out$avg, col = col_avg, lty = 1, lwd=1)
+	if (!is.na(default_score)) {
+		points(x=consist_out[consist_out$score==default_score,'frac_repeat_all'], y=consist_out[consist_out$score==default_score,'avg'], col = col_avg, pch = pch_h)
+	}
+}
+
+consist_wE_aa_out <- preproc_consist('consist_wE_aa_out.1.tsv')
+consist_woE_aa_out <- preproc_consist('consist_woE_aa_out.1.tsv')
+consist_wE_nt_out <- preproc_consist('consist_wE_nt_out.1.tsv')
+consist_woE_nt_out <- preproc_consist('consist_woE_nt_out.1.tsv')
+
+consist_XSTREAM_aa_out <- preproc_consist('consist_XSTREAM_aa_out.1.tsv')
+consist_TRUST_aa_out <- preproc_consist('consist_TRUST_aa_out.1.tsv')
+consist_TREKS_aa_out <- preproc_consist('consist_TREKS_aa_out.1.tsv')
+consist_RADAR_aa_out <- preproc_consist('consist_RADAR_aa_out.1.tsv')
+consist_HHrepID_aa_out <- preproc_consist('consist_HHrepID_aa_out.1.tsv')
+
+consist_TRF_nt_out <- preproc_consist('consist_TRF_nt_out.1.tsv')
+consist_XSTREAM_nt_out <- preproc_consist('consist_XSTREAM_nt_out.1.tsv')
+consist_mreps_nt_out <- preproc_consist('consist_mreps_nt_out.1.tsv')
+consist_TREKS_nt_out <- preproc_consist('consist_TREKS_nt_out.1.tsv')
+
+
+# AA
+pdf(file = "ortho_aa_full.3.pdf", width = 5, height = 5.5)
+plot(x*100,y*100, type='l', lty=2, xlim=c(0, 100), ylim=c(0, 100), xaxs = "i", yaxs = "i", xlab = "Percentage of residues predicted as tandem repeat (%)", ylab = "Average consistency (%)", main='KEGG ortholog protein benchmark')
+
+pdf(file = "ortho_aa_zoom.3.pdf", width = 5, height = 5.5)
+plot(x*100,y*100, type='l', lty=2, xlim=c(0, 10), ylim=c(90, 100), xaxs = "i", yaxs = "i", xlab = "Percentage of residues predicted as tandem repeat (%)", ylab = "Average consistency (%)", main='KEGG ortholog protein benchmark')
+
+plot_consist(consist_wE_aa_out, rgb(0.9,0.1,0.29,0.1), '#e6194B', 10, 2) # DECIPHER_useEmp (Red)
+plot_consist(consist_woE_aa_out, rgb(0.96,0.51,0.19,0.1), '#f58231', 10, 1) # DECIPHER_noEmp (Orange)
+plot_consist(consist_RADAR_aa_out, rgb(0.98,0.75,0.83,0.1), '#fabed4', NA, NA) # RADAR (Pink)
+plot_consist(consist_XSTREAM_aa_out, rgb(0.26,0.39,0.85,0.1), '#4363d8', 0.2, 5) # XSTREAM (Blue)
+plot_consist(consist_HHrepID_aa_out, rgb(0.57,0.12,0.71,0.1), '#911eb4', 0.001, 4) # HHrepID (Purple)
+plot_consist(consist_TRUST_aa_out, rgb(0.26,0.83,0.96,0.1), '#42d4f4', NA, NA) # TRUST (Cyan)
+plot_consist(consist_TREKS_aa_out, rgb(0.24,0.71,0.29,0.1), '#3cb44b', 0.7, 6) # TREKS (Green)
+dev.off()
+
+
+# NT
+pdf(file = "ortho_nt_full.3.pdf", width = 5, height = 5.5)
+plot(x*100,y*100, type='l', lty=2, xlim=c(0, 100), ylim=c(0, 100), xaxs = "i", yaxs = "i", xlab = "Percentage of nucleotides predicted as tandem repeat (%)", ylab = "Average consistency (%)", main='KEGG ortholog nucleotide benchmark')
+
+pdf(file = "ortho_nt_zoom.3.pdf", width = 5, height = 5.5)
+plot(x*100,y*100, type='l', lty=2, xlim=c(0, 10), ylim=c(90, 100), xaxs = "i", yaxs = "i", xlab = "Percentage of nucleotides predicted as tandem repeat (%)", ylab = "Average consistency (%)", main='KEGG ortholog nucleotide benchmark')
+
+plot_consist(consist_wE_nt_out, rgb(0.9,0.1,0.29,0.1), '#e6194B', 10, 2) # DECIPHER_useEmp (Red)
+plot_consist(consist_woE_nt_out, rgb(0.96,0.51,0.19,0.1), '#f58231', 10, 1) # DECIPHER_noEmp (Orange)
+plot_consist(consist_TRF_nt_out, rgb(0.5,0.5,0,0.1), '#808000', 50, 7) # TRF (Olive)
+plot_consist(consist_XSTREAM_nt_out, rgb(0.26,0.39,0.85,0.1), '#4363d8', 0.2, 5) # XSTREAM (Blue)
+plot_consist(consist_mreps_nt_out, rgb(0.67,0.43,0.16,0.1), '#9A6324', 0.3, 8) # MREPS (Teal)
+plot_consist(consist_TREKS_nt_out, rgb(0.24,0.71,0.29,0.1), '#3cb44b', 0.7, 6) # TREKS (Green)
+dev.off()
