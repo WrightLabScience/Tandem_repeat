@@ -18,7 +18,7 @@ Step 1: Make species tree for genomes
 ---
 Collect SSU RNA sequences from each genome using DECIPHER::FindNonCoding() \
 Select unit with most SSU patterns matched \
-Align SSU RNA sequences \ 
+Align SSU RNA sequences \
 Reconstruct species tree using DECIPHER::TreeLine()
 
 File paths:
