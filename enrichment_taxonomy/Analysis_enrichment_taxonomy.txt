@@ -1,0 +1,355 @@
+Analysis_enrichment_taxonomy.txt
+
+Shu-Ting Cho <shutingcho@pitt.edu>
+
+# Tandem repeat enrichment analysis for taxonomy
+# Fig4A
+
+# Step0: Prepare source data
+# Step1: Make species tree
+# Step2: Run DetectRepeats
+# Step3: Compute phylogenetic signal Blomberg's K
+
+# load library
+library(DECIPHER)
+
+
+# Step0: Prepare source data
+# Download genomes from NCBI with filters (on 2022/11/18)
+# Prokaryotes
+## Assembly level: Complete
+## RefSeq category: reference or representative
+# Eukaryotes
+## Assembly level: Complete or Chromosome
+## Partial: Exclude partial
+## RefSeq category: reference or representative
+cd source_data/faa_20221118
+wget ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/012/931/545/GCF_012931545.1_Oket_V1/GCF_012931545.1_Oket_V1_protein.faa.gz -O GCA_012931545.faa.gz # use one genome as an example. 
+
+
+# Step 1.1: collect SSU sequences
+# find SSU rRNA using FindNonCoding()
+# Use Archaea as an example
+pro_4077 <- readRDS('pro_4077.rds')
+genomeIDs <- rownames(pro_4077)[startsWith(pro_4077$Organism.Groups, 'Archaea')]
+data(NonCodingRNA_Archaea)
+x <- NonCodingRNA_Archaea
+arc_failed <- c()
+arc_SSUs <- c()
+for (i in seq_along(genomeIDs))
+{
+	genomeID_h <- genomeIDs[i]
+	cat(i, genomeID_h, '\n')
+	fas.ftp <- pro_4077[genomeID_h, 'RefSeq.FTP']
+	fas.url <- paste(fas.ftp, "/", strsplit(fas.ftp, split = "/", fixed = TRUE)[[1]][10], "_genomic.fna.gz", sep = "")
+	# try downloading the whole genome sequence until succeed
+	genome <- NULL
+	while (is.null(genome)) {
+		try(genome <- readDNAStringSet(fas.url))
+	}
+	z <- FindNonCoding(x['rRNA_16S-RF01959'], genome, processors=4) # find Archaeal 16S seqs. rRNA_16S-RF00177 for Bacterial 16S seqs. rRNA_18S-RF01960 for Eukaryotes' 18S seqs.
+	if ( length(z) > 0) {
+		genes <- ExtractGenes(z[which.max(z[, 'TotalScore'])], genome, type="RNAStringSet") # get the ones with highest score
+		SSU_h <- RNAStringSet(unname(as.character(genes[1]))) # pick the first one if there are multiple with the same score
+		names(SSU_h) <- genomeID_h
+		arc_SSUs <- c(arc_SSUs, SSU_h)
+	} else {
+		arc_failed <- c(arc_failed, genomeID_h)
+	}
+}
+# results: arc_SSUs; bac_SSUs; euk_SSUs
+
+
+# Step 1.2: Select unit with >= ?? SSU patterns matched
+# Prokaryotes: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2754607/)
+patterns_Bac <- list()
+patterns_Bac[['E104']] <- DNAString("GGCGVACGGGTGAGTAA")
+patterns_Bac[['E314']] <- DNAString("CAYTGGRACTGAGACACGGYCCARACTCCTACGGGAGGCAGCAGTRRGGAATHTT")
+patterns_Bac[['E505']] <- DNAString("GGCTAACTHCGTGCCAGCAGCCGCGGTAATACGDA")
+patterns_Bac[['E683']] <- DNAString("GTGTAGRGGTGAAATKCGYAGAKAT")
+patterns_Bac[['E764']] <- DNAString("CGAAAGYGTGGGKAKCRCAGGATTAGATACCCTGGTAGTCC")
+patterns_Bac[['E879']] <- DNAString("CCRCCTGGGGAGTAC")
+patterns_Bac[['E909']] <- DNAString("ACTCAAAKGAATTGACGGGGRCCCGCACAAGC")
+patterns_Bac[['E949']] <- DNAString("ATGTGGTTTAATTCGA")
+patterns_Bac[['E969']] <- DNAString("ACGCGARGAACCTTACC")
+patterns_Bac[['E1048']] <- DNAString("GTGSTGCATGGYTGTCGTCAGCTCGTGYCGTGAGRTGTYGGGTTAAGTCCCRYAACGAGCGCAACCC")
+patterns_Bac[['E1177']] <- DNAString("GGAAGGYGGGGAYGACGTCAA")
+
+patterns_Arc <- list()
+patterns_Arc[['A344']] <- DNAString("AYGGGGYGCAGCAGGCGRGAAARC")
+# patterns_Arc[['A506']] <- DNAString("GGYAAGDCYGGTGYCAGCCGCCGCGGTAAHACCRCCDRTGGCGAA") # no match, removed
+patterns_Arc[['A779']] <- DNAString("CRAACSGGATTAGATACCCSGGTAGTCC")
+patterns_Arc[['A882']] <- DNAString("CCTGGGRAGTACGKHCGCAAGDRTGAAACTTAAAGGAATTGGCGGGGGAGCAC")
+patterns_Arc[['A947']] <- DNAString("GCSTGCGGYTYAATTGGABTCAACGCC")
+patterns_Arc[['A1043']] <- DNAString("GAGAGGWGGTGCATGGCCGYCGYCAGYTCGT")
+patterns_Arc[['A1094']] <- DNAString("GTCAGRYAACGARCGAGA")
+patterns_Arc[['A1225']] <- DNAString("ACACGCGSGCTRCAAWGG")
+
+# Eukaryotes: https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0090053
+patterns_Euk <- list()
+patterns_Euk[['1A']] <- RNAString("AACCUGGUUGAUCCUGCCAGU")
+patterns_Euk[['564R']] <- RNAString("GAGGGCAAGUCUGGUGCC")
+patterns_Euk[['ARB547']] <- RNAString("UGGAGGGCAAGUCUGGUGCCAGCAGCCGCGGUAAUUCCAGCUC")
+patterns_Euk[['ARB1141']] <- RNAString("GAAUUGACGGAAGGGCACCAC")
+patterns_Euk[['ARB1266']] <- RNAString("UGGUGGUGCAUGGCCGUUCUUAGUU")
+patterns_Euk[['ARB1423']] <- RNAString("UAACAGGUCUGUGAUGCCCUU")
+patterns_Euk[['ARB1624']] <- RNAString("CCUUUGUACACACCGCCCGUCGCU")
+patterns_Euk[['EUK353']] <- RNAString("ACGGGURACGGRGRAUYAGGGUUYGAYUCCGGAGAGGGAGCMUGAGARAYGGCUACYACWUCYAAGGAWGGCAGCAGGCRCGAAMUURCCCA")
+patterns_Euk[['EUK549']] <- RNAString("GAGGGCAAGUCUGGUGCCAGCAGCCGCGGUAAUUCCAGCUC")
+patterns_Euk[['EUK1181']] <- RNAString("UUAAUUUGACUCAACRCGGGRGAA")
+patterns_Euk[['EUK1266']] <- RNAString("UGGUGGUGCAUGGCCGUUCUU")
+patterns_Euk[['EUK1422']] <- RNAString("AUAACAGGUCUGUGAUGCC")
+patterns_Euk[['EUK1453']] <- RNAString("GGGCYGCACGCGYRCUACA")
+patterns_Euk[['EUK1569']] <- RNAString("AACGAGGAAUKCCYWGUA")
+
+
+
+# Find pattern: use 10% mismatch as cutoff (use bacteria as an example)
+vcountpatterns_Bac <- matrix(0, length(bac_SSUs), length(patterns_Bac))
+rownames(vcountpatterns_Bac) <- names(bac_SSUs)
+colnames(vcountpatterns_Bac) <- names(patterns_Bac)
+subject <- bac_SSUs
+for (pattern_name in names(patterns_Bac))
+{
+	pattern_h <- patterns_Bac[[pattern_name]]
+	print(pattern_name)
+	maxmis <- round(length(pattern_h)*0.10)
+	vcountpatterns_Bac[,pattern_name] <- vcountPattern(pattern_h, subject, fixed="subject", max.mismatch=maxmis, with.indels=TRUE)
+}
+
+## Bacteria
+colSums(vcountpatterns_Bac)
+ E104  E314  E505  E683  E764  E879  E909  E949  E969 E1048 E1177 
+ 3774  3776  3831  3515  3588  3758  3827  3811  3833  3838  3818 
+
+vcountpatterns_Bac_1 <- vcountpatterns_Bac
+vcountpatterns_Bac_1[vcountpatterns_Bac_1!=0] <- 1
+hist(rowSums(vcountpatterns_Bac_1))
+table(rowSums(vcountpatterns_Bac_1))
+   4    5    6    7    8    9   10   11 
+   1    1    4   14   29  117  449 3223 
+
+# keep >= 9 patterns
+vcountpatterns_Bac_2 <- vcountpatterns_Bac_1[rowSums(vcountpatterns_Bac_1) >= 9,]
+bac3789_SSUs <- bac_SSUs[rownames(vcountpatterns_Bac_2)]
+
+
+## Archaea
+colSums(vcountpatterns_Arc)
+ A344  A779  A882  A947 A1043 A1094 A1225 
+  207   236   236   239   238   236   237 
+
+vcountpatterns_Arc_1 <- vcountpatterns_Arc
+vcountpatterns_Arc_1[vcountpatterns_Arc_1!=0] <- 1
+table(rowSums(vcountpatterns_Arc_1))
+  5   6   7 
+  6  32 201 
+
+# keep all
+arc239_SSUs <- arc_SSUs
+
+
+## Eukaryotes
+colSums(vcountpatterns_Euk)
+     1A    564R  ARB547 ARB1141 ARB1266 ARB1423 ARB1624  EUK353  EUK549 
+    604     636     630     638     625     631     641     626     631 
+EUK1181 EUK1266 EUK1422 EUK1453 EUK1569 
+    626     638     631     634     644 
+
+vcountpatterns_Euk_1 <- vcountpatterns_Euk
+vcountpatterns_Euk_1[vcountpatterns_Euk_1!=0] <- 1
+table(rowSums(vcountpatterns_Euk_1))
+  0   1   2   3   4   5   6   7   8   9  10  11  12  13  14 
+ 20  26   5   2   5  17   7   8   9  16  15   4  20  52 518 
+
+# keep >= 12 patterns
+vcountpatterns_Euk_2 <- vcountpatterns_Euk_1[rowSums(vcountpatterns_Euk_1) >= 12,]
+euk590_SSUs <- euk_SSUs[rownames(vcountpatterns_Euk_2)]
+
+
+# Step 1.3: Align SSU RNA sequences
+# use the alignment from rfam as base: SSU_rRNA_eukarya (RF01960); SSU_rRNA_bacteria (RF00177); SSU_rRNA_archaea (RF01959)
+# use eukaryote as an example
+# download .afa from: https://rfam.org/family/RF01960#tabview=tab2
+RF01960 <- readRNAStringSet('RF01960.afa') # 90 seqs
+RF01960_msa <- RF01960
+for (i in seq_along(euk590_SSUs))
+{
+	RF01960_msa <- AlignProfiles(RF01960_msa, euk590_SSUs[i])
+}
+# remove the first 90 seqs
+euk590_SSUs_MSA <- RF01960_msa[c(91:680)]
+
+# combine alignments
+pro4028_SSUs_MSA <- AlignProfiles(bac3789_SSUs_MSA, arc239_SSUs_MSA)
+all4618_SSUs_MSA <- AlignProfiles(pro4028_SSUs_MSA, euk590_SSUs_MSA)
+
+
+# Reconstruct species tree using DECIPHER::TreeLine()
+all4618_SSUs_d <- DistanceMatrix(all4618_SSUs_MSA, correction = "F81", type="dist", proc=8)
+all4618_SSUs_MLtree <- TreeLine(myXStringSet=all4618_SSUs_MSA, myDistMatrix=all4618_SSUs_d, method="ML", cutoff=0.05, maxTime=60, proc=16, model='GTR+G4')
+WriteDendrogram(all4618_SSUs_MLtree, file = 'species_4618.tree')
+
+
+
+# Step 2.1: Run DetectRepeats
+Rscript DECIPHER_DetectRepeats.18.r ${seqID}
+
+# Step 2.2: count tandem repeat. Count at most one repeat per gene if isoforms exist.
+cd count_TR_isoform/logs
+Rscript count_TR_isoform.3.r ${seqID} ${seqID}.tr protein.faa genomic.gff
+
+grep -h '### Report uniq' *.out | sed -E 's/### Report uniq:  seqID = (GC._[0-9]+) , uniq_seq_n = ([0-9]+) , uniq_TR_n = ([0-9]+) , frac_uniq_TR = ([^ ]+) /\1\t\2\t\3\t\4/g' | sort > count_TR_isoform/count_TR_isoform.out
+grep -h '### Report total' *.out | sed -E 's/### Report total: seqID = (GC._[0-9]+) , total_seq_n = ([0-9]+) , total_TR_n = ([0-9]+) , frac_total_TR = ([^ ]+) /\1\t\2\t\3\t\4/g' | sort > count_TR_isoform/count_TR_total.out
+
+# read TR count into R
+count_TR_isoform <- read.table('count_TR_isoform.out', sep='\t', row.names=1)
+count_TR_total <- read.table('count_TR_total.out', sep='\t', row.names=1)
+count_TR_merge <- merge(count_TR_isoform, count_TR_total, by = 'row.names') 
+colnames(count_TR_merge) <- c('seqID', 'uniq_seq_n', 'uniq_TR_n', 'frac_uniq_TR','total_seq_n', 'total_TR_n', 'frac_total_TR')
+rownames(count_TR_merge) <- count_TR_merge$seqID
+saveRDS(count_TR_merge, 'count_TR_merge.rds')
+
+
+# Step 3: Compute phylogenetic signal Blomberg's K
+library(phytools)
+library(dendextend)
+tree <- read.tree(file = 'species_4618.tree')
+tree$tip.label <- gsub('\"','',tree$tip.label)
+trait <- count_TR_merge[tree$tip.label, 'frac_uniq_TR']
+names(trait) <- tree$tip.label
+all4618_ML_K_07012024 <- phylosig(tree, trait, method="K", test=TRUE, nsim=1000000)
+saveRDS(all4618_ML_K_07012024, '~/Documents/project/TR02/TR02.96/all4618_ML_K_07012024.rds')
+# Phylogenetic signal K : 0.000613398 
+# P-value (based on 1000000 randomizations) : 1e-06
+
+
+
+# Step 4.1: Assign taxonomy
+
+# load training set, download dataset from DECIPHER website
+load('~/project/TR02/TR02.57/GTDB_r207-mod_April2022.RData', verbose = TRUE) # for prokaryotes: http://www2.decipher.codes/Classification/TrainingSets/GTDB_r207-mod_April2022.RData
+load('~/project/TR02/TR02.57/SILVA_SSU_r138_2019.RData', verbose = TRUE) # for eukaryotes: http://www2.decipher.codes/Classification/TrainingSets/SILVA_SSU_r138_2019.RData
+
+# run IdTaxa
+ids <- IdTaxa(test = SSUs, trainingSet = trainingSet, threshold = 40)
+
+# use prokaryotes as an example
+rank2save <- c("domain","phylum","class","order","family","genus")
+assignment <- sapply(pro4028_ids, function(x) paste(x$taxon, collapse=";"))
+rank <- sapply(pro4028_ids, function(x) paste(x$rank, collapse=";"))
+
+df_assignment <- data.frame(matrix(nrow=length(assignment), ncol=length(rank2save)))
+rownames(df_assignment) <- names(assignment)
+colnames(df_assignment) <- rank2save
+
+for (genomeID_h in names(assignment))
+{
+	assignments_h <- unlist(strsplit(assignment[[genomeID_h]], ";"))
+	names(assignments_h) <- unlist(strsplit(rank[[genomeID_h]], ";"))
+	ranks_h <- names(assignments_h)[names(assignments_h)%in%rank2save]
+	df_assignment[genomeID_h, ranks_h] <- assignments_h[ranks_h]
+	print(genomeID_h)
+}
+
+pro_4028_assignment <- merge(pro_4028, df_assignment, by = 'row.names', all = TRUE)
+rownames(pro_4028_assignment) <- pro_4028_assignment$Row.names
+
+
+
+
+
+# Step 4.2: plot tree with bar
+# color top 15 phyla
+mypalette_15 <- c(
+   '#800000', '#9A6324', '#808000', '#469990', '#000075',
+   '#e6194B', '#f58231', '#3cb44b', '#4363d8', '#911eb4',
+   '#f032e6', '#a9a9a9', '#fabed4', '#ffd8b1', '#aaffc3')
+
+genomeIDs_Proteobacteria <- rownames(all_4618_assignment[all_4618_assignment$phylum == "Proteobacteria" & !is.na(all_4618_assignment$phylum),])
+genomeIDs_Actinobacteriota <- rownames(all_4618_assignment[all_4618_assignment$phylum == "Actinobacteriota" & !is.na(all_4618_assignment$phylum),])
+genomeIDs_Firmicutes <- rownames(all_4618_assignment[all_4618_assignment$phylum == "Firmicutes" & !is.na(all_4618_assignment$phylum),])
+genomeIDs_Bacteroidota <- rownames(all_4618_assignment[all_4618_assignment$phylum == "Bacteroidota" & !is.na(all_4618_assignment$phylum),])
+genomeIDs_Vertebrata <- rownames(all_4618_assignment[all_4618_assignment$phylum == "Vertebrata" & !is.na(all_4618_assignment$phylum),])
+genomeIDs_Firmicutes_A <- rownames(all_4618_assignment[all_4618_assignment$phylum == "Firmicutes_A" & !is.na(all_4618_assignment$phylum),])
+genomeIDs_Phragmoplastophyta <- rownames(all_4618_assignment[all_4618_assignment$phylum == "Phragmoplastophyta" & !is.na(all_4618_assignment$phylum),])
+genomeIDs_Halobacteriota <- rownames(all_4618_assignment[all_4618_assignment$phylum == "Halobacteriota" & !is.na(all_4618_assignment$phylum),])
+genomeIDs_Arthropoda <- rownames(all_4618_assignment[all_4618_assignment$phylum == "Arthropoda" & !is.na(all_4618_assignment$phylum),])
+genomeIDs_Campylobacterota <- rownames(all_4618_assignment[all_4618_assignment$phylum == "Campylobacterota" & !is.na(all_4618_assignment$phylum),])
+genomeIDs_Ascomycota <- rownames(all_4618_assignment[all_4618_assignment$phylum == "Ascomycota" & !is.na(all_4618_assignment$phylum),])
+genomeIDs_Thermoproteota <- rownames(all_4618_assignment[all_4618_assignment$phylum == "Thermoproteota" & !is.na(all_4618_assignment$phylum),])
+genomeIDs_Desulfobacterota <- rownames(all_4618_assignment[all_4618_assignment$phylum == "Desulfobacterota" & !is.na(all_4618_assignment$phylum),])
+genomeIDs_Spirochaetota <- rownames(all_4618_assignment[all_4618_assignment$phylum == "Spirochaetota" & !is.na(all_4618_assignment$phylum),])
+genomeIDs_Cyanobacteria <- rownames(all_4618_assignment[all_4618_assignment$phylum == "Cyanobacteria" & !is.na(all_4618_assignment$phylum),])
+
+library(magrittr)
+
+# color the branches
+all4618_MLtree01 <- all4618_MLtree %>% 
+   set("labels_cex", NA) %>% 
+   set("branches_col", 'black')
+all4618_MLtree01 %>% plot(main = "all4618_MLtree01")
+
+all4618_MLtree02 <- all4618_MLtree01 %>% 
+   set("by_labels_branches_col", value = genomeIDs_Proteobacteria, TF_values = mypalette_15[1]) %>% # Maroon
+   set("by_labels_branches_col", value = genomeIDs_Actinobacteriota, TF_values = mypalette_15[2]) %>% # Brown
+   set("by_labels_branches_col", value = genomeIDs_Firmicutes, TF_values = mypalette_15[3]) %>% # Olive
+   set("by_labels_branches_col", value = genomeIDs_Bacteroidota, TF_values = mypalette_15[4]) %>% # Teal
+   set("by_labels_branches_col", value = genomeIDs_Vertebrata, TF_values = mypalette_15[5]) %>% # Navy
+   set("by_labels_branches_col", value = genomeIDs_Firmicutes_A, TF_values = mypalette_15[6]) %>% # Red
+   set("by_labels_branches_col", value = genomeIDs_Phragmoplastophyta, TF_values = mypalette_15[7]) %>% # Orange
+   set("by_labels_branches_col", value = genomeIDs_Halobacteriota, TF_values = mypalette_15[8]) %>% # Green
+   set("by_labels_branches_col", value = genomeIDs_Arthropoda, TF_values = mypalette_15[9]) %>% # Blue
+   set("by_labels_branches_col", value = genomeIDs_Campylobacterota, TF_values = mypalette_15[10]) %>% # Purple
+   set("by_labels_branches_col", value = genomeIDs_Ascomycota, TF_values = mypalette_15[11]) %>% # Magenta
+   set("by_labels_branches_col", value = genomeIDs_Thermoproteota, TF_values = mypalette_15[12]) %>% # Grey
+   set("by_labels_branches_col", value = genomeIDs_Desulfobacterota, TF_values = mypalette_15[13]) %>% # Pink
+   set("by_labels_branches_col", value = genomeIDs_Spirochaetota, TF_values = mypalette_15[14]) %>% # Apricot
+   set("by_labels_branches_col", value = genomeIDs_Cyanobacteria, TF_values = mypalette_15[15]) # Lavender
+all4618_MLtree02 %>% plot(main = "Adjust the branch if ALL (default) of its labels are in the list")
+
+
+# sort the tree
+all4618_MLtree03 <- all4618_MLtree02 %>% set("labels_cex", 0.1) %>% sort(type = "nodes")
+
+vals <- count_TR_merge[labels(all4618_MLtree03),'frac_uniq_TR']
+
+# tree with bar chart colored by clade
+par(mar=c(10,1,1,0))
+plot(all4618_MLtree03, leaflab = "none", main = "all4618_MLtree03", axes=F)
+lines(c(-50,0), c(10.5,10.5),xpd=TRUE)
+lines(c(-50,0), c(10,10),xpd=TRUE)
+lines(c(-25,-25), c(10,10.5),xpd=TRUE)
+text('0.5', x = -50, y = 10.04, cex=1, pos=2, xpd=TRUE, srt=-90)
+text('subs. / site', x = -150, y = 9.5, cex=1, pos=2, xpd=TRUE, srt=-90)
+
+# add ticks to scale for bar chart
+rect(seq_along(vals) - 0.5, -0.05, seq_along(vals) + 0.5, -vals*10-0.05, xpd=TRUE, border=NA, col=get_leaves_branches_col(all4618_MLtree03))
+lines(c(-85,-25), c(-0.05,-0.05),xpd=TRUE)
+lines(c(-60,-25), c(-0.25,-0.25),xpd=TRUE)
+lines(c(-60,-25), c(-0.45,-0.45),xpd=TRUE)
+lines(c(-60,-25), c(-0.65,-0.65),xpd=TRUE)
+lines(c(-60,-25), c(-0.85,-0.85),xpd=TRUE)
+lines(c(-85,-25), c(-1.05,-1.05),xpd=TRUE)
+lines(c(-60,-25), c(-1.25,-1.25),xpd=TRUE)
+lines(c(-60,-25), c(-1.45,-1.45),xpd=TRUE)
+lines(c(-60,-25), c(-1.65,-1.65),xpd=TRUE)
+lines(c(-60,-25), c(-1.85,-1.85),xpd=TRUE)
+lines(c(-85,-25), c(-2.05,-2.05),xpd=TRUE)
+lines(c(-60,-25), c(-2.25,-2.25),xpd=TRUE)
+lines(c(-60,-25), c(-2.45,-2.45),xpd=TRUE)
+lines(c(-60,-25), c(-2.65,-2.65),xpd=TRUE)
+lines(c(-60,-25), c(-2.85,-2.85),xpd=TRUE)
+lines(c(-85,-25), c(-3.05,-3.05),xpd=TRUE)
+lines(c(-60,-25), c(-3.25,-3.25),xpd=TRUE)
+lines(c(-60,-25), c(-3.45,-3.45),xpd=TRUE)
+lines(c(-60,-25), c(-3.65,-3.65),xpd=TRUE)
+lines(c(-60,-25), c(-3.85,-3.85),xpd=TRUE)
+lines(c(-85,-25), c(-4.05,-4.05),xpd=TRUE)
+lines(c(-25,-25), c(-0.05,-4.05),xpd=TRUE)
+text('0', x = -85, y = -0.1, cex=1, pos=2, xpd=TRUE, srt=-90)
+text('10', x = -85, y = -1.2, cex=1, pos=2, xpd=TRUE, srt=-90)
+text('20', x = -85, y = -2.2, cex=1, pos=2, xpd=TRUE, srt=-90)
+text('30', x = -85, y = -3.2, cex=1, pos=2, xpd=TRUE, srt=-90)
+text('40', x = -85, y = -4.2, cex=1, pos=2, xpd=TRUE, srt=-90)
+text('Fraction of proteins (%)', x = -170, y = -1.8, cex=1, pos=1, xpd=TRUE, srt=-90)
