@@ -37,7 +37,7 @@ Scripts:
 
 Step 3: Compute phylogenetic signal Blomberg's K
 ---
-Compute Blomberg's K for proteome TR fraction using phytools::phylosig() \
+Compute Blomberg's K for proteome TR fraction using phytools::phylosig()
 
 File paths:
  - all4618_ML_K_07012024.rds
