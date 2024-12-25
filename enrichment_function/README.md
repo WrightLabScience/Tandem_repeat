@@ -40,7 +40,7 @@ Step 3: Calculate values and plot
 ---
 x-axis: Fraction of genomes have the Kgroup (perc_genomes) \
 y-axis: Fraction of Kgroup have tandem repeat (perc_TR_genes) \
-dot size: DetectRepeats average score (Scores_highest_ave) \ 
+dot size: DetectRepeats average score (Scores_highest_ave) \
 shade: Average sequence identity of genes in Kgroup (PID)
 
 Scripts:
