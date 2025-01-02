@@ -1,0 +1,221 @@
+Analysis_enrichment_genomic_region.txt
+
+Shu-Ting Cho <shutingcho@pitt.edu>
+
+# DetectRepeats on whole genome DNA seq
+# Complete genomes only
+# Fig5
+
+# step0: List of available genomes
+# step1: Run DetectRepeats
+# step2: Calculate TR frequency and plot Fig5A
+# step3: TR enrichment analysis and plot Fig5B
+
+# load library
+library(DECIPHER)
+
+
+# step0: genome list from NCBI
+wget https://ftp.ncbi.nlm.nih.gov/genomes/ASSEMBLY_REPORTS/assembly_summary_refseq.txt
+wget https://ftp.ncbi.nlm.nih.gov/genomes/ASSEMBLY_REPORTS/assembly_summary_genbank.txt
+
+head -2 assembly_summary_refseq.txt > assembly_summary_refseq_REPR.txt
+grep 'representative genome' assembly_summary_refseq.txt | grep 'Complete Genome' >> assembly_summary_refseq_REPR.txt
+grep 'reference genome' assembly_summary_refseq.txt | grep 'Complete Genome' >> assembly_summary_refseq_REPR.txt
+wc -l assembly_summary_refseq_REPR.txt                               
+		5502 assembly_summary_refseq_REPR.txt
+
+head -2 assembly_summary_genbank.txt > assembly_summary_genbank_REPR.txt
+grep 'representative genome' assembly_summary_genbank.txt | grep 'Complete Genome' >> assembly_summary_genbank_REPR.txt
+grep 'reference genome' assembly_summary_genbank.txt | grep 'Complete Genome' >> assembly_summary_genbank_REPR.txt
+wc -l assembly_summary_genbank_REPR.txt                               
+		5660 assembly_summary_genbank_REPR.txt
+
+
+# read in R
+# refseq records
+assembly_summary_refseq_REPR <- read.delim('assembly_summary_refseq_REPR.txt', header = TRUE, sep= "\t")
+table(assembly_summary_refseq_REPR$group)
+						 archaea             bacteria                fungi         invertebrate 
+								 332                 5042                   54                    6 
+							 plant             protozoa vertebrate_mammalian     vertebrate_other 
+									 6                    5                    6                    2 
+							 viral 
+									47 
+summary(assembly_summary_refseq_REPR[assembly_summary_refseq_REPR$group!='viral', 'protein_coding_gene_count'])
+	 Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+		188    2304    3466    3687    4532   43901 
+
+# genbank records
+assembly_summary_genbank_REPR <- read.delim('assembly_summary_genbank_REPR.txt', header = TRUE, sep= "\t")
+assembly_summary_genbank_REPR <- assembly_summary_genbank_REPR[assembly_summary_genbank_REPR$protein_coding_gene_count!='na',]
+assembly_summary_genbank_REPR$protein_coding_gene_count <- as.integer(assembly_summary_genbank_REPR$protein_coding_gene_count)
+assembly_summary_genbank_REPR <- assembly_summary_genbank_REPR[assembly_summary_genbank_REPR$protein_coding_gene_count>0,]
+table(assembly_summary_genbank_REPR$group)
+		 archaea     bacteria        fungi invertebrate        plant     protozoa        viral 
+				 264         4444           97            1           10            8           19 
+summary(assembly_summary_genbank_REPR[assembly_summary_genbank_REPR$group!='viral', 'protein_coding_gene_count'])
+	 Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+		189    2310    3474    3718    4611   30799 
+
+# add genbank records to list if not alread exist refseq
+genbank_only <- assembly_summary_genbank_REPR[!is.element(gsub('GCA_([0-9]+).[0-9]+','GCF_\\1',assembly_summary_genbank_REPR$assembly_accession), gsub('(GCF_[0-9]+).[0-9]+','\\1',assembly_summary_refseq_REPR$assembly_accession)),] # 56
+genbank_only <- genbank_only[(genbank_only$group!='bacteria' & genbank_only$group!='archaea'),] # 51
+
+# prokaryote list: 5374
+assembly_summary_prok_1 <- assembly_summary_refseq_REPR[is.element(assembly_summary_refseq_REPR$group, c('bacteria','archaea')),]
+
+# eukaryote list: 130
+assembly_summary_euk_1 <- rbind(assembly_summary_refseq_REPR[is.element(assembly_summary_refseq_REPR$group, c('fungi','invertebrate','plant','protozoa','vertebrate_mammalian','vertebrate_other')),], genbank_only[is.element(genbank_only$group, c('fungi','invertebrate','plant','protozoa','vertebrate_mammalian','vertebrate_other')),])
+
+rownames(assembly_summary_prok_1) <- gsub('(GC._[0-9]+).[0-9]+','\\1',assembly_summary_prok_1$assembly_accession)
+rownames(assembly_summary_euk_1) <- gsub('(GC._[0-9]+).[0-9]+','\\1',assembly_summary_euk_1$assembly_accession)
+saveRDS(assembly_summary_prok_1, 'assembly_summary_prok_1.rds')
+saveRDS(assembly_summary_euk_1, 'assembly_summary_euk_1.rds')
+write(paste(rownames(assembly_summary_prok_1), sep="\n"), file='queue_list_prok.txt')
+write(paste(rownames(assembly_summary_euk_1), sep="\n"), file='queue_list_euk.txt')
+
+
+# download source data
+mkdir source_data_07022024
+cd source_data_07022024
+# use GCF_000287275 as an example
+Rscript fetch_source_data.1.r assembly_summary_prok_1.rds GCF_026314945 ftp_path fna gff
+
+
+
+# step1: Run DetectRepeats
+# use GCF_028858775 contig 3 as an example
+Rscript DetectRepeats_gfna.2.r GCF_026314945 1
+# combine TR results in R
+for (seqID_h in seqIDs) { # seqIDs is a list of genome IDs
+	cat(seqID_h,'\n\n')
+	fnames <- list.files(pattern = paste(seqID_h, '_[0-9]+.tr', sep=''))
+	print(fnames)
+	DR_all <- NULL
+	for (fname_h in fnames) {
+		DR_h <- readRDS(fname_h)
+		DR_all <- rbind(DR_all, DR_h)
+	}
+	DR_all <- DR_all[order(DR_all$Index), ]
+	saveRDS(DR_all, paste(seqID_h, '.tr', sep=''))
+}
+
+
+
+# step2.1: Calculate TR frequency for each genome
+Rscript CDSregion_TR.9.r GCF_026314945
+
+
+
+# step2.2: Combine TR frequencies of all prokaryotic or eukaryotic genomes
+# Analysis includes 5,374 prokaryotic and 121 eukaryotic genomes, the rest genomes are too big and failed to complete the analysis in time.
+
+# read TR positions, use eukaryote as an example
+trpos_euk_mt1000.s <- matrix(0,nrow = 1000, ncol = 199)
+trpos_euk_mt1000.e <- matrix(0,nrow = 1000, ncol = 199)
+filedir <- 'CDSregion_TR_07082024/'
+assembly_summary_euk_1 <- readRDS('assembly_summary_euk_1.rds')
+euk_seqIDs <- rownames(assembly_summary_euk_1)[! rownames(assembly_summary_euk_1) %in% pending_seqIDs] # pending_seqIDs are genomes failed to complete the analysis
+n_genomes <- length(euk_seqIDs)
+
+# stack TR frequencies from all genomes to generate a heatmap
+trpos_mt_euk <- matrix(0,nrow = n_genomes, ncol = 408)
+for (n in seq(n_genomes)) {
+	genomeID <- euk_seqIDs[n]
+	cat(n, genomeID, '\n')
+	trpos.s <- readRDS(paste(filedir, genomeID, '_start.rds', sep=''))
+	trpos.e <- readRDS(paste(filedir, genomeID, '_end.rds', sep=''))
+	trpos_mt_euk[n, c(1:199)] <- trpos.s
+	trpos_mt_euk[n, c(210:408)] <- trpos.e
+	for (j in seq(199)) {
+		# start
+		i <- floor(trpos.s[j]/0.001)+1
+		trpos_euk_mt1000.s[i,j] <- trpos_euk_mt1000.s[i,j]+1
+		# end
+		i <- floor(trpos.e[j]/0.001)+1
+		trpos_euk_mt1000.e[i,j] <- trpos_euk_mt1000.e[i,j]+1
+	}
+}
+trpos_median_euk <- apply(trpos_mt_euk,2,median)*100
+trpos_median_euk <- c(trpos_median_euk, 8,8,8)
+
+# cbind trpos_mt.s and trpos_mt.e with gap
+trpos_mt1000.gap <- matrix(0,nrow = 1000, ncol = 10)
+trpos_mt1000.cbind <- cbind(trpos_euk_mt1000.s, trpos_mt1000.gap, trpos_euk_mt1000.e)
+max(trpos_mt1000.cbind)
+[1] 22
+# 22/121=18.2% maximum for eukaryotes
+# 668/5374=12.4% maximum for prokaryotes
+
+save(trpos_mt1000.cbind, assembly_summary_euk_1, trpos_median_euk, file='/Users/shc167/Documents/project/TR02/TR02.82/trpos_euk.RData', compress = "xz")
+
+
+# step2.3: Plot heatmap and TR frequency median
+# heatmap use 9-class BuPu
+library("RColorBrewer")
+library("gplots")
+
+# 20 colors, bias = 1
+BuPu_20 <- colorRampPalette(brewer.pal(9, "BuPu"), bias = 1)(20)
+heatmap.2(trpos_mt1000.cbind[c(80:1),], scale = "none", col = BuPu_20, main='bias = 1',
+		  Rowv=NA, Colv=NA, dendrogram = "none",
+		  trace = "none", density.info = "none")
+
+# TR frequency median
+plot(trpos_median_euk, type='l')
+
+
+
+
+
+
+# step3: plot delta of TR frequency median between genic and intergenic
+# Adjust P-values for Multiple Comparisons
+
+#### prok ####
+start_intergenic_meds_prok <- c()
+start_intragenic_meds_prok <- c()
+stop_intergenic_meds_prok <- c()
+stop_intragenic_meds_prok <- c()
+for (distance_h in seq(99)) {
+	start_intergenic_col <- 100-distance_h
+	start_intragenic_col <- 100+distance_h
+	stop_intragenic_col <- 309-distance_h
+	stop_intergenic_col <- 309+distance_h
+	# test start
+	start_intergenic_meds_prok <- c(start_intergenic_meds_prok, median(trpos_mt_prok[,start_intergenic_col]))
+	start_intragenic_meds_prok <- c(start_intragenic_meds_prok, median(trpos_mt_prok[,start_intragenic_col]))
+	stop_intergenic_meds_prok <- c(stop_intergenic_meds_prok, median(trpos_mt_prok[,stop_intergenic_col]))
+	stop_intragenic_meds_prok <- c(stop_intragenic_meds_prok, median(trpos_mt_prok[,stop_intragenic_col]))
+}
+#### euk ####
+start_intergenic_meds_euk <- c()
+start_intragenic_meds_euk <- c()
+stop_intergenic_meds_euk <- c()
+stop_intragenic_meds_euk <- c()
+for (distance_h in seq(99)) {
+	start_intergenic_col <- 100-distance_h
+	start_intragenic_col <- 100+distance_h
+	stop_intragenic_col <- 309-distance_h
+	stop_intergenic_col <- 309+distance_h
+	# test start
+	start_intergenic_meds_euk <- c(start_intergenic_meds_euk, median(trpos_mt_euk[,start_intergenic_col]))
+	start_intragenic_meds_euk <- c(start_intragenic_meds_euk, median(trpos_mt_euk[,start_intragenic_col]))
+	stop_intergenic_meds_euk <- c(stop_intergenic_meds_euk, median(trpos_mt_euk[,stop_intergenic_col]))
+	stop_intragenic_meds_euk <- c(stop_intragenic_meds_euk, median(trpos_mt_euk[,stop_intragenic_col]))
+}
+
+plot_min <- min(start_intergenic_meds_prok-start_intragenic_meds_prok, start_intergenic_meds_euk-start_intragenic_meds_euk, stop_intergenic_meds_prok-stop_intragenic_meds_prok, stop_intergenic_meds_euk-stop_intragenic_meds_euk)
+plot_max <- max(start_intergenic_meds_prok-start_intragenic_meds_prok, start_intergenic_meds_euk-start_intragenic_meds_euk, stop_intergenic_meds_prok-stop_intragenic_meds_prok, stop_intergenic_meds_euk-stop_intragenic_meds_euk)
+
+par(mfrow = c(1, 2), mar=c(4,4,2,1))
+# start region: distance to M
+plot(start_intergenic_meds_prok-start_intragenic_meds_prok, ylim=c(plot_min,plot_max),col='orange', xlab='Distance from start (nucleotides)',ylab=expression(paste(Delta, " genic - intergenic (%)")), main='Start region', pch=ifelse(p.adjust(start_pvalues_prok, method = "holm") < 0.05, 16, 1))
+abline(h=0)
+points(start_intergenic_meds_euk-start_intragenic_meds_euk, col='blue', pch=ifelse(p.adjust(start_pvalues_euk, method = "holm") < 0.05, 16, 1))
+
+# stop region: distance to *
+plot(stop_intergenic_meds_prok-stop_intragenic_meds_prok, ylim=c(plot_min,plot_max),col='orange', xlab='Distance from stop (nucleotides)',ylab=expression(paste(Delta, " genic - intergenic (%)")), main='stop region', pch=ifelse(p.adjust(stop_pvalues_prok, method = "holm") < 0.05, 16, 1))
+abline(h=0)
+points(stop_intergenic_meds_euk-stop_intragenic_meds_euk, col='blue', pch=ifelse(p.adjust(stop_pvalues_euk, method = "holm") < 0.05, 16, 1))
