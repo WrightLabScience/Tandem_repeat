@@ -1,5 +1,5 @@
 # Enrichment analysis for taxonomy
-To generate figure 4A
+To generate figure 4
 
 Notes:
  - Analysis_enrichment_taxonomy.txt

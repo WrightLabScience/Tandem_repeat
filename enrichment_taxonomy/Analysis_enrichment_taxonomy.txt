@@ -3,7 +3,7 @@ Analysis_enrichment_taxonomy.txt
 Shu-Ting Cho <shutingcho@pitt.edu>
 
 # Tandem repeat enrichment analysis for taxonomy
-# Fig4A
+# Fig4
 
 # Step0: Prepare source data
 # Step1: Make species tree
