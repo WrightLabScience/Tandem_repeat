@@ -1,5 +1,5 @@
 # Design and model of DetectRepeats
-To generate figure 1BCDEF
+To generate figure 1BCDEF and graphical abstract
 
 Step 0: Prepare source data
 ---
@@ -16,7 +16,7 @@ Find tandem repeat in Kgroups' amino acid (aa) sequences using DetectRepeats()
 Notes:
  - Analysis_model_of_DetectRepeats.txt
 
-Step 2: Inspect structural repeat
+Step 2: Investigate structural repeats
 ---
 Compare repeat sequence properties to the background and calculate log-odds
 
