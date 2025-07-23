@@ -1,0 +1,126 @@
+Analysis_PDB_source.txt
+
+Shu-Ting Cho <shutingcho@pitt.edu>
+
+# Get summary of source PDB used in training and test data
+# eukaryote, prokaryote, other
+
+# load library
+library(DECIPHER)
+
+
+# info & compositions of structural benchmark
+# list of PDB, remove chain ID
+pdb_ids <- unique(sub("\\..*", "", answer$ID2))
+writeLines(pdb_ids, '/Users/shc167/Documents/project/TR02/TR02.102/pdb_id.list')
+
+# download .cif through wget, collect species name and taxonomy id info
+cd /Users/shc167/Documents/project/TR02/TR02.102/
+for pdb_id in `cat pdb_id.list` 
+do
+wget -O pdb_h.cif https://files.rcsb.org/view/${pdb_id}.cif
+if grep -q "^_entity_src_gen.pdbx_gene_src_scientific_name  " pdb_h.cif
+then
+sci_name=$(grep "^_entity_src_gen.pdbx_gene_src_scientific_name" pdb_h.cif | sed -E "s/_entity_src_gen.pdbx_gene_src_scientific_name +'(.*)'.*/\1/g")
+else
+sci_name=""
+fi
+if grep -q "^_entity_src_gen.pdbx_gene_src_ncbi_taxonomy_id  " pdb_h.cif
+then
+tax_id=$(grep "^_entity_src_gen.pdbx_gene_src_ncbi_taxonomy_id" pdb_h.cif | awk '{print $2}')
+else
+tax_id=""
+fi
+echo -e "${pdb_id}\t${sci_name}\t${tax_id}" >> pdb_taxid.tsv
+done
+# some taxon id is "?"
+wc -l pdb_taxid.tsv
+    1288 pdb_taxid.tsv
+
+# in R, convert taxon id to prok or euk
+install.packages("remotes")
+remotes::install_github("ropensci/taxizedb")
+library(taxizedb)
+
+# Function to check if a taxonomy ID is prokaryote or eukaryote
+get_kingdom <- function(tax_id) {
+  # Get taxonomic classification for the ID
+  classification_h <- classification(tax_id, db = "ncbi")
+  if (is.null(classification_h)) {
+    return(NA) # Return NA if classification failed
+  } else if (class(classification_h[[1]])!='data.frame') {
+	return(NA)
+  } else if (any(c("Bacteria", "Archaea") %in% classification_h[[tax_id]][["name"]])) {
+	return("prokaryote")
+  } else if ("Eukaryota" %in% classification_h[[tax_id]][["name"]]) {
+    return("eukaryote")
+  } else {
+    return(NA) # Return NA if neither found
+  }
+}
+
+# read table
+pdb_info_df <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/pdb_taxid.tsv', header = FALSE, sep= "\t", fill = FALSE, comment.char="")
+colnames(pdb_info_df) <- c('pdb_id', 'sci_name', 'tax_id')
+rownames(pdb_info_df) <- pdb_info_df$pdb_id
+pdb_info_df <- pdb_info_df[unique(pdb_ids),]
+dim(pdb_info_df)
+[1] 1288    3
+
+pdb_info_df.kingdom <- sapply(pdb_info_df$tax_id, get_kingdom)
+pdb_info_df$kingdom <- pdb_info_df.kingdom
+
+table(pdb_info_df$kingdom, useNA ="always")
+ eukaryote prokaryote       <NA> 
+       363        632        293 
+
+write.table(pdb_info_df, '/Users/shc167/Documents/project/TR02/TR02.102/pdb_info_df.tsv', quote=FALSE, sep='\t', row.names = FALSE)
+
+
+# add missing data from PDB and NCBI taxonomy
+pdb_info_df1 <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/pdb_info_df.1.txt', header = TRUE, sep= "\t", fill = TRUE)
+table(pdb_info_df1$kingdom, useNA ="always")
+           chimeric           eukaryote          prokaryote 
+                  2                 497                 699 
+synthetic construct             unknown               virus 
+                 54                   5                  31 
+               <NA> 
+                  0 
+rownames(pdb_info_df1) <- pdb_info_df1$pdb_id
+
+library(dplyr)
+
+pdb_info_df2 <- answer[,c('ID1','ID2','seq_len')]
+pdb_info_df2 <- distinct(pdb_info_df2)
+pdb_info_df2$pdb_id <- sub("\\..*", "", pdb_info_df2$ID2)
+
+pdb_info_df2$kingdom <- NA
+pdb_info_df2$TR_fracs <- NA
+for (row_i in rownames(pdb_info_df2)) {
+	pdb_id_h <- pdb_info_df2[row_i,'pdb_id']
+	pdb_info_df2[row_i, 'kingdom'] <- pdb_info_df1[pdb_id_h, 'kingdom']
+	df_h <- answer[answer$ID1==pdb_info_df2[row_i,'ID1'],]
+	seq_len_h <- df_h[1,'seq_len']
+	TR_len_h <- sum(df_h$end_label - df_h$begin_label + 1 )
+	pdb_info_df2[row_i, 'TR_fracs'] <- TR_len_h / seq_len_h
+}
+
+table(pdb_info_df2$kingdom, useNA ="always")
+           chimeric           eukaryote          prokaryote 
+                  2                 515                 702 
+synthetic construct             unknown               virus 
+                 56                   5                  32 
+               <NA> 
+                  0 
+
+round(table(pdb_info_df2$kingdom, useNA ="always")/nrow(pdb_info_df2), digits=2)
+           chimeric           eukaryote          prokaryote 
+             0.0015              0.3925              0.5351 
+synthetic construct             unknown               virus 
+             0.0427              0.0038              0.0244 
+               <NA> 
+             0.0000 
+
+summary(pdb_info_df2$TR_fracs)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.1491  0.8268  0.8937  0.8740  0.9420  3.6786 

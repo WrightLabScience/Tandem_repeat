@@ -65,51 +65,28 @@ BrowseSeqs(msa_4CNLA, colors=colors, patterns=names(colors))
 
 
 # Fig2E:
-## detect tandem repeats in aa sequence using different tools
-TR_h <- DetectRepeats(aa['4CNLA'], processors=NULL, useEmpirical=TRUE)
-#   Index Begin End         Left        Right    Score
-# 1     1    10 169 10, 50, .... 49, 89, .... 32.78345
-
-TR_h <- DetectRepeats(aa['4CNLA'], processors=NULL, useEmpirical=FALSE)
-#   Index Begin End         Left        Right    Score
-# 1     1    10 169 10, 50, .... 49, 89, .... 20.73899
-
-
-df_HHrepID_aa[df_HHrepID_aa$seqID=='4CNLA',]
-		 seqID start end P.value Type Repeats Length Offset
-1142 4CNLA    11  47 2.7e-66    A       4     40     48
-1143 4CNLA    48  87 2.7e-66    A       4     40     48
-1144 4CNLA    88 127 2.7e-66    A       4     40     48
-1145 4CNLA   128 164 2.7e-66    A       4     40     48
-
-
-grep '4CNLA' /Users/shc167/Documents/project/TR02/TR02.70/trust/eval.aa/-70
-4CNLA	5	42	139.26456	149.26456
-4CNLA	43	82	186.71005	186.71005
-4CNLA	83	122	190.41957	190.41957
-4CNLA	123	162	175.76727	175.76727
-4CNLA	5	82	351.78354	361.78354
-4CNLA	83	162	389.96564	389.96564
-
-# treks
-		Research of repeats is requested:
-
-Length: 40 residues - nb: 3  from  45 to 164 - Psim:0.9 region Length:120 
-YDSSYQAWYYLKSDGSYAKNAWQGAYYLKSNGKMAQGEWV 45:84
-YDSSYQAWYYLKSDGSYARNAWQGNYYLKSDGKMAKGEWV 85:124
-YDATYQAWYYLTSDGSYAYSTWQGNYYLKSDGKMAVNEWV 125:164
-**********************
-1 sequences have been detected as tandem repeats containing. 
-Memory usage: : -
-
-grep '4CNLA' /Users/shc167/Documents/project/TR02/TR02.88/xstream.aa/0.2
-4CNLA	182	11	159	40	3.73	AWYYFDGNGNLVKNAWQGSYYLKADGKMAQSEWIYDSSYQ AWYYLKSDGSYAKNAWQGAYYLKSNGKMAQGEWVYDSSYQ AWYYLKSDGSYARNAWQGNYYLKSDGKMAKGEWVYDATYQ AWYYLTSDGSYAYSTWQGNYYLKSDGKMA	AWYYLKSDGSYAKNAWQGNYYLKSDGKMAQGEWVYDSSYQ	AWYYLKSDGSYAKNAWQGNYYLKSDGKMAQGEWVYDSSYQ	0.14
-11:50,51:90,91:130,131:159
-
-
 # make mt for plotting
 heatmap_mt_4CNLA <- matrix(0, nrow = 17, ncol = 182)
-rownames(heatmap_mt_4CNLA) <- c('CE-Symm [SymmTMscore=0.78]', '','DetectRepeats(w/ empirical) [score=33]' , 'DetectRepeats(w/o empirical) [score=21]', 'HHrepID [P-value=2.7e-66]', 'RADAR [Total Score=115.76]', 'TRUST [score=173]', 'T-REKS [Psim=0.9]',  'XSTREAM [consensus error=0.14]', '', 'DetectRepeats(w/ empirical) [no hits]', 'DetectRepeats(w/o empirical) [no hits]', 'HHrepID [P-value=3.4e-10]', 'RADAR [Total Score=135.57]', 'TRUST [score=39]', 'T-REKS [Psim=0.7]',  'XSTREAM [no hits]')
+rownames(heatmap_mt_4CNLA) <- c('CE-Symm [SymmTMscore=0.78]', '','DetectRepeats(w/ empirical) [score=24]' , 'DetectRepeats(w/o empirical) [score=27]', 'HHrepID [P-value=2.7e-66]', 'RADAR [Total Score=331]', 'TRUST [score=692]', 'T-REKS [Psim=0.9]',  'XSTREAM [consensus error=0.14]', '', 'DetectRepeats(w/ empirical) [no hits]', 'DetectRepeats(w/o empirical) [no hits]', 'HHrepID [P-value=8.7e-12]', 'RADAR [Total Score=131;48]', 'TRUST [score=305;53]', 'T-REKS [no hits]', 'XSTREAM [consensus error=0.1]')
+
+## detect tandem repeats in aa sequence using different tools
+##### DetectRepeats: same #####
+DetectRepeats_wE_TP_04012025[DetectRepeats_wE_TP_04012025$seqID=='4CNLA',]
+    Index Begin End         Left        Right    Score seqID
+780   659    10 169 10, 50, .... 49, 89, .... 24.47712 4CNLA
+
+DetectRepeats_woE_TP_04012025[DetectRepeats_woE_TP_04012025$seqID=='4CNLA',]
+     Index Begin End         Left        Right   Score seqID
+1357   659    10 169 10, 50, .... 49, 89, .... 26.8387 4CNLA
+
+DetectRepeats_wE_FP_04012025[DetectRepeats_wE_FP_04012025$seqID=='4CNLA',]
+    Index Begin End       Left        Right    Score seqID
+923   659     1 182 1, 46, 101 45, 100, 182 5.077619 4CNLA # score < 8
+
+DetectRepeats_woE_FP_04012025[DetectRepeats_woE_FP_04012025$seqID=='4CNLA',]
+     Index Begin End     Left    Right     Score seqID
+1840   659    41 160   41, 96  95, 160 5.0603243 4CNLA # score < 8
+1841   659   166 182 166, 176 175, 182 0.6757439 4CNLA # score < 8
 
 # backgroud color
 heatmap_mt_4CNLA[11:17, ] <- 3
@@ -127,33 +104,114 @@ heatmap_mt_4CNLA[3, c(50:89,130:169)] <- 2
 heatmap_mt_4CNLA[4, c(10:49,90:129)] <- 1
 heatmap_mt_4CNLA[4, c(50:89,130:169)] <- 2
 
-# HHrepID TP, FP
+
+##### HHrepID TP, FP #####
+# Results for repeats type A:
+
+# Repeats        4
+# P-value  2.7E-66
+# Length        40
+# Offset        48
+
+# ID Probab  P-value RepScore RepScoreNorm Cols Query HMM Template HMM
+# A1  97.78  6.4e-24    26.49         0.72   37   11-47      51-87   
+# A2  99.82  3.9e-32    29.44         0.74   40   48-87      48-87   
+# A3  99.37  2.4e-28    29.58         0.74   40   88-127     48-87   
+# A4  99.48  2.7e-27    35.32         0.95   37  128-164     48-84   
+
+# A1  4CNLA            11-47    +0 ---AWYYFDGNGNLVKNAWQGSYYLKADGKMAQSEWIYDS
+# A2  4CNLA            48-87    +0 SYQAWYYLKSDGSYAKNAWQGAYYLKSNGKMAQGEWVYDS
+# A3  4CNLA            88-127   +0 SYQAWYYLKSDGSYARNAWQGNYYLKSDGKMAKGEWVYDA
+# A4  4CNLA           128-164   +0 TYQAWYYLTSDGSYAYSTWQGNYYLKSDGKMAVNEWV---
 heatmap_mt_4CNLA[5, c(11:47,88:127)] <- 1
 heatmap_mt_4CNLA[5, c(48:87,128:164)] <- 2
-heatmap_mt_4CNLA[13, c(57:76,96:114)] <- 1
-heatmap_mt_4CNLA[13, c(77:95)] <- 2
+# Results for repeats type A:
 
-# RADAR TP, FP
-heatmap_mt_4CNLA[6, c(27:36,67:76,130:139)] <- 1
-heatmap_mt_4CNLA[6, c(50:59,90:99)] <- 2
-heatmap_mt_4CNLA[14, c(22:43,117:135)] <- 1
-heatmap_mt_4CNLA[14, c(44:68,154:172)] <- 2
+# Repeats        3
+# P-value  8.7E-12
+# Length        58
+# Offset        88
 
-# TRUST TP, FP
+# ID Probab  P-value RepScore RepScoreNorm Cols Query HMM Template HMM
+# A1  70.21  4.8e-07     9.69         0.51   19    1-20     106-125  
+# A2  93.67  4.0e-15    28.87         0.67   43   41-87     101-145  
+# A3  94.56  4.3e-15    38.53         0.66   58   88-145     88-145  
+
+# A1  4CNLA             1-20   +20 ------------------GKMAK-A....WYYLYAySTSEWIY--------------------wqgnyylksnyaknada
+# A2  4CNLA            41-87    +0 -------------WQGAYGKMAQGEwvyaWYYLTS.DGSDSSYQNE--WVDYLKSDVWKEVLV.................
+# A3  4CNLA            88-145   +0 KNAAWYYLWQGSYWQGNYGKMAQYA....RNAVGA.DGGEWVYDGNGNGGRYYTTSGWKSDGS.................
+
+# A1  4CNLA             1-20   +20 tyq
+# A2  4CNLA            41-87    +0 ...
+# A3  4CNLA            88-145   +0 ...
+heatmap_mt_4CNLA[13, c(1:20,88:145)] <- 1
+heatmap_mt_4CNLA[13, c(41:87)] <- 2
+
+##### RADAR TP, FP #####
+# ---------------------------------------------------------------------------
+# No. of Repeats|Total Score|Length  |Diagonal| BW-From|   BW-To|   Level
+#              4|     330.93|      37|      37|      42|      78|       1
+# ---------------------------------------------------------------------------
+#     5-   38 (67.57/20.05)	.WVKQDG..AWYYFDGNGNLVKNAWQGSYYLKADGKM
+#    42-   78 (87.12/27.47)	EWIYDSSYQAWYYLKSDGSYAKNAWQGAYYLKSNGKM
+#    82-  118 (89.78/28.48)	EWVYDSSYQAWYYLKSDGSYARNAWQGNYYLKSDGKM
+#   122-  158 (86.47/27.23)	EWVYDATYQAWYYLTSDGSYAYSTWQGNYYLKSDGKM
+# ---------------------------------------------------------------------------
+
+heatmap_mt_4CNLA[6, c(5:38,82:118)] <- 1
+heatmap_mt_4CNLA[6, c(42:78,122:158)] <- 2
+# ---------------------------------------------------------------------------
+# No. of Repeats|Total Score|Length  |Diagonal| BW-From|   BW-To|   Level
+#              3|     131.13|      31|      32|      11|      41|       1
+# ---------------------------------------------------------------------------
+#     7-   38 (50.25/11.73)       ..WyylYA.YSTSEWIY.WQGNYYLKSNYAKNADAT
+#    39-   68 (42.61/ 9.16)       YQWqgaYGkMAQGEWVYaW...YYLTSD...GSDSS
+#    94-  115 (38.27/ 7.71)       YLW....Q.GS.....Y.WQGNYGKMAQYARNA...
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# No. of Repeats|Total Score|Length  |Diagonal| BW-From|   BW-To|   Level
+#              2|      47.62|      13|      83|      69|      82|       2
+# ---------------------------------------------------------------------------
+#    69-   82 (23.94/13.89)       YQnEWVDYLKSDVW
+#   154-  166 (23.68/ 9.38)       YQ.AWYYFGKMAVY
+# ---------------------------------------------------------------------------
+heatmap_mt_4CNLA[14, c(7:38,94:115)] <- 1
+heatmap_mt_4CNLA[14, c(39:68)] <- 2
+
+##### TRUST TP, FP #####
+# 4CNLA	1	40	5	42	139.26456	692.16145
+# 4CNLA	1	40	43	82	186.71005	692.16145
+# 4CNLA	1	40	83	122	190.41957	692.16145
+# 4CNLA	1	40	123	162	175.76727	692.16145
 heatmap_mt_4CNLA[7, c(5:42,83:122)] <- 1
 heatmap_mt_4CNLA[7, c(43:82,123:162)] <- 2
-heatmap_mt_4CNLA[15, c(18:49,89:121,141:169)] <- 1
-heatmap_mt_4CNLA[15, c(50:88,122:140)] <- 2
+# 4CNLA	1	55	1	50	96.59332	305.189553
+# 4CNLA	1	55	51	105	148.79578	305.189553
+# 4CNLA	1	55	106	160	59.800453	305.189553
+# 4CNLA	2	7	166	170	24.06469	53.031905
+# 4CNLA	2	7	176	182	28.967215	53.031905
+heatmap_mt_4CNLA[15, c(1:50,106:160)] <- 1
+heatmap_mt_4CNLA[15, c(51:105)] <- 2
 
-# T-REKS TP, FP
+##### T-REKS TP, FP #####
+# >4CNLA
+# Length: 40 residues - nb: 3  from  45 to 164 - Psim:0.9 region Length:120 
+# YDSSYQAWYYLKSDGSYAKNAWQGAYYLKSNGKMAQGEWV
+# YDSSYQAWYYLKSDGSYARNAWQGNYYLKSDGKMAKGEWV
+# YDATYQAWYYLTSDGSYAYSTWQGNYYLKSDGKMAVNEWV
+# **********************
 heatmap_mt_4CNLA[8, c(45:84,125:164)] <- 1
 heatmap_mt_4CNLA[8, c(85:124)] <- 2
-heatmap_mt_4CNLA[16, c(88:107)] <- 1
-heatmap_mt_4CNLA[16, c(108:131)] <- 2
+# heatmap_mt_4CNLA[16, c(88:107)] <- 1
+# heatmap_mt_4CNLA[16, c(108:131)] <- 2
 
-# XSTREAM TP, FP
+##### XSTREAM TP, FP #####
+# 4CNLA	182	11	159	40	3.73	AWYYFDGNGNLVKNAWQGSYYLKADGKMAQSEWIYDSSYQ AWYYLKSDGSYAKNAWQGAYYLKSNGKMAQGEWVYDSSYQ AWYYLKSDGSYARNAWQGNYYLKSDGKMAKGEWVYDATYQ AWYYLTSDGSYAYSTWQGNYYLKSDGKMA	AWYYLKSDGSYAKNAWQGNYYLKSDGKMAQGEWVYDSSYQ	AWYYLKSDGSYAKNAWQGNYYLKSDGKMAQGEWVYDSSYQ	.14
 heatmap_mt_4CNLA[9, c(11:50,91:130)] <- 1
 heatmap_mt_4CNLA[9, c(51:90,131:159)] <- 2
+# 4CNLA	182	96	105	5	2.00	WQGSY WQGNY	WQGNY	WQGNY	.10
+heatmap_mt_4CNLA[17, c(96:100)] <- 1
+heatmap_mt_4CNLA[17, c(101:105)] <- 2
 
 heatmap(heatmap_mt_4CNLA, scale='none', col = c('lightgrey', '#FFB81C', '#003594', 'darkgrey', 'white'), Rowv=NA, Colv=NA, revC=TRUE)
 

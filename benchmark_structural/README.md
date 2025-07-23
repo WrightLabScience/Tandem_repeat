@@ -1,17 +1,18 @@
-# To generate figure 2BCDEFG
+# To generate figure 2BCDEFG, S1
 ## Structural benchmark
 
 Step 0:
 ---
 Source data:
- - 496 PDB chain sequences with structural tandem repeats (average TM-score > 0.7) detected by CE-Symm
+ - 1,312 PDB chain sequences with structural tandem repeats (average TM-score 0.6 - 1) detected by CE-Symm
 
 Files:
- - input.aa.fasta
- - answer.tsv
+ - TPs_v5.fas.gz
+ - FPs_v5.fas.gz
 
 Step 1:
 ---
+Generate lookup table to convert auth_seq_id to label_seq_id
 Run TR detecting tools and parsing the results
 
 Notes:
@@ -19,11 +20,9 @@ Notes:
 
 Scripts:
  - parse_HHrepID.2.r
- - parse_MREPS.1.py
- - parse_RADAR.1.py
- - parse_TRF.1.py
- - parse_treks.3.py
- - parse_trust.4.py
+ - parse_RADAR.2.r
+ - parse_treks.4.r
+ - parse_trust.5.r
 	 
 Step 2:
 ---
@@ -41,3 +40,16 @@ Show an example
 
 Notes:
  - Analysis_4CNL_example.txt
+
+
+Validate tandem repeats identified by protein tandem repeat finding tools
+---
+
+Notes:
+ - Analysis_Tally_validation.txt
+
+Scripts:
+ - parse_HHrepID2Tally.1.r
+ - parse_trust.5.r
+ - parse_RADAR.2.r
+ - parse_treks.4.r

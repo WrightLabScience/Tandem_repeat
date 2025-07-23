@@ -1,0 +1,483 @@
+Analysis_Tally_validation.txt
+
+Shu-Ting Cho <shutingcho@pitt.edu>
+
+# Validate tandem repeats identified by protein tandem repeat finding tools
+# Fig. S1
+
+# load library
+library(DECIPHER)
+
+# Run Tally on CESymm's TR
+# https://bioinfo.crbm.cnrs.fr/index.php?route=tools&tool=27
+# 2. Score
+# Tally
+# Tally-2.3 score is obtained with machine learning approach. At a threshold of 0.5, established based on the maximization of F-score, Tally-2.3 performs at a level of 89% sensitivity, while achieving a high specificity of 89% and an Area Under the Receiver Operating Characteristic Curve of 96%.
+# Validated MSAs have Tally-2.3 scores ≥ 0.5.
+
+# Psim
+# Psim is a score relying on the Hamming distance between the repeats and their consensus sequence.
+# Validated MSAs have Psim ≥ 0.7. [Psim documentation]
+
+# p-value-phylo
+# Validated MSAs have p-value-phylo scores ≤ 0.001. [Schaper et al.,2012]
+
+# Entropy
+# See : Entropy score definition
+
+# Parsimony
+# See : Parsimony score definition
+
+
+############################### CE-Symm ###############################
+in_dir <- '/Users/shc167/Documents/project/TR02/TR02.102/Update_CE-Symmv2.3.0_benchmark/repeat_alignments_v2/'
+out_file_prefix <- '/Users/shc167/Documents/project/TR02/TR02.102/Tally_CE-Symm/CE-Symm'
+answer <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.2.tsv', header = TRUE, sep= "\t")
+seqIDs <- unique(answer$ID1)
+out_n_repeats=0
+out_file_index=0
+output_nchar=20000
+for (seqID_h in seqIDs) {
+	output_lines <- paste0('#', seqID_h)
+	alignment_h <- readAAStringSet(paste0(in_dir, seqID_h, '.fas'))
+	for (i in seq_along(alignment_h)) {
+		output_lines <- paste0(output_lines, '\n', gsub('[Xx.]','-',as.character(alignment_h[i])[[1]]))
+	}
+	if (output_nchar + nchar(output_lines) > 18000) {
+		out_file_index=out_file_index+1
+		output_nchar = 0
+		write(output_lines, file=paste0(out_file_prefix, '.', out_file_index,'.fastally'), append=FALSE)
+	} else {
+		write(output_lines, file=paste0(out_file_prefix, '.', out_file_index,'.fastally'), append=TRUE)
+	}
+	output_nchar = output_nchar + nchar(output_lines)
+	out_n_repeats = out_n_repeats + 1
+	output_lines <- NULL
+}
+
+# read in Tally results
+res <- readRDS('~/Documents/project/TR02/TR02.103/CE-Symm_v2.3.0_benchmark/res.rds')
+res$Id <- paste0('#', rownames(res))
+res <- res[seqIDs, c('Id', 'V11')]
+res$V11 <- as.numeric(res$V11)
+in_dir <- '/Users/shc167/Documents/project/TR02/TR02.102/Tally_CE-Symm'
+filenames <- list.files(path = in_dir, pattern = '*.csv', full.names = TRUE, recursive = FALSE)
+Tally_result_all <- NULL
+for (filename_h in filenames) {
+	Tally_result_h <- read.table(filename_h, header = TRUE, sep= ",", comment.char="")
+	Tally_result_all <- rbind(Tally_result_all, Tally_result_h)
+}
+Tally_CESymm_merged <- merge(x=res, y=Tally_result_all, by = 'Id', all=TRUE)
+
+pdf(file = "/Users/shc167/Documents/project/TR02/TR02.102/Tally_val_DetectRepeats.1.pdf", width = 5, height = 5.5)
+plot(x=Tally_CESymm_merged$V11, y=Tally_CESymm_merged$Tally, log='x', main='Tally validation for CE-Symm', xlab='CE-Symm TM-Score', ylab='Tally score', pch=16, col='#00000033', cex=0.5)
+lines(smooth.spline(x=Tally_CESymm_merged$V11, y=Tally_CESymm_merged$Tally, df=8), col='red',lwd=1)
+abline(h=0.5, col="gray",lty = 1)
+dev.off()
+
+# no point at bottom right
+nrow(Tally_CESymm_merged[(Tally_CESymm_merged$Score>=8 & Tally_CESymm_merged$Tally>=0.5),])
+[1] 171 # Tally v; DetectRepeats v
+
+nrow(Tally_CESymm_merged[(Tally_CESymm_merged$Score<8 & Tally_CESymm_merged$Tally>=0.5),])
+[1] 950 # Tally v; DetectRepeats x
+
+nrow(Tally_CESymm_merged[(Tally_CESymm_merged$Score<8 & Tally_CESymm_merged$Tally<0.5),])
+[1] 421 # Tally x; DetectRepeats x
+
+nrow(Tally_CESymm_merged[(Tally_CESymm_merged$Score>=8 & Tally_CESymm_merged$Tally<0.5),])
+[1] 0 # Tally x; DetectRepeats v
+
+
+
+############################### DetectRepeats w/ E ###############################
+faa_h <- TPs_v5_rename
+TR_h <- DetectRepeats_wE_TP_04012025 # use all results
+out_file_prefix <- '/Users/shc167/Documents/project/TR02/TR02.102/Tally_DetectRepeats_wE/DetectRepeats_alignments.'
+seqIDs <- unique(answer$ID1)
+n_seqs=0
+out_file_index=1
+for (row_i in seq(nrow(TR_h))) {
+	write(paste0('#', row_i, '_', TR_h[row_i, 'seqID']), file = paste0(out_file_prefix,out_file_index,'.fastally'), ncolumns = 1, append = TRUE)
+	reps <- extractAt(faa_h[[TR_h[row_i, "Index"]]], IRanges(TR_h[[row_i, "Left"]], TR_h[[row_i, "Right"]]))
+	reps <- AlignSeqs(reps, verbose=FALSE)
+	for (i in seq_along(reps)) {
+		x <- gsub('X','-',as.character(reps[i])[[1]])
+		write(x, file = paste0(out_file_prefix,out_file_index,'.fastally'), ncolumns = 1, append = TRUE)
+	}
+	n_seqs=n_seqs+1
+	if (n_seqs == 50) {
+		out_file_index=out_file_index+1
+		n_seqs=0
+	}
+}
+
+# read in Tally results
+in_dir <- '/Users/shc167/Documents/project/TR02/TR02.102/Tally_DetectRepeats_wE/'
+filenames <- list.files(path = in_dir, pattern='*.csv', full.names = TRUE, recursive = FALSE)
+Tally_result_all <- NULL
+for (filename_h in filenames) {
+	Tally_result_h <- read.table(filename_h, header = TRUE, sep= ",", comment.char="")
+	Tally_result_all <- rbind(Tally_result_all, Tally_result_h)
+}
+Tally_result_all$row_i <- gsub('#([0-9]+)_.+','\\1',Tally_result_all$Id)
+Tally_result_all$seqID <- gsub('#[0-9]+_(.+)','\\1',Tally_result_all$Id)
+Tally_DetectRepeats_wE_merged <- merge(x=DetectRepeats_wE_TP_04012025, y=Tally_result_all, by.x = 'row.names', by.y = 'row_i', all=TRUE)
+
+pdf(file = "/Users/shc167/Documents/project/TR02/TR02.102/Tally_val_DetectRepeats.1.pdf", width = 5, height = 5.5)
+plot(x=Tally_DetectRepeats_wE_merged$Score, y=Tally_DetectRepeats_wE_merged$Tally, log='x', main='Tally validation for DetectRepeats', xlab='DetectRepeats Score', ylab='Tally score', pch=16, col='#00000033', cex=0.5)
+lines(smooth.spline(x=Tally_DetectRepeats_wE_merged$Score, y=Tally_DetectRepeats_wE_merged$Tally, df=8), col='red',lwd=1)
+abline(v=8, col="gray",lty = 1)
+abline(h=0.5, col="gray",lty = 1)
+dev.off()
+
+# no point at bottom right
+nrow(Tally_DetectRepeats_wE_merged[(Tally_DetectRepeats_wE_merged$Score>=8 & Tally_DetectRepeats_wE_merged$Tally>=0.5),])
+[1] 171 # Tally v; DetectRepeats v
+
+nrow(Tally_DetectRepeats_wE_merged[(Tally_DetectRepeats_wE_merged$Score<8 & Tally_DetectRepeats_wE_merged$Tally>=0.5),])
+[1] 950 # Tally v; DetectRepeats x
+
+nrow(Tally_DetectRepeats_wE_merged[(Tally_DetectRepeats_wE_merged$Score<8 & Tally_DetectRepeats_wE_merged$Tally<0.5),])
+[1] 421 # Tally x; DetectRepeats x
+
+nrow(Tally_DetectRepeats_wE_merged[(Tally_DetectRepeats_wE_merged$Score>=8 & Tally_DetectRepeats_wE_merged$Tally<0.5),])
+[1] 0 # Tally x; DetectRepeats v
+
+# write in the MS
+summary(Tally_DetectRepeats_wE_merged[(Tally_DetectRepeats_wE_merged$Score>=8 & Tally_DetectRepeats_wE_merged$Tally>=0.5), 'Tally'])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.5990  0.9752  0.9930  0.9758  0.9990  1.0000 
+# 100% of repeats from DetectRepeats have >= 0.5 Tally scores(mean=0.98)
+
+summary(Tally_DetectRepeats_wE_merged[(Tally_DetectRepeats_wE_merged$Score<8), 'Tally'])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.0430  0.4354  0.6623  0.6261  0.8293  1.0000 
+# Among repeats with < 8 DetectRepeats scores, 70% of the repeats passed Tally score threshold (>=0.5), with mean Tally score = 0.63
+
+# This validation again shows that DetectRepeats has very high true positive rate with the default score cutoff (minScore=8), which is very close to the threshold that only detect repeats with Tally score >= 0.5 (0 FPR).
+# However, we suggest the user to set the score cutoff to a lower value (e.g., minScore=1) to retrieve a better sensitivity.
+
+
+
+############################### DetectRepeats w/o E ###############################
+faa_h <- TPs_v5_rename
+predict_df <- DetectRepeats_woE_TP_04012025 # use all results
+out_prefix <- '/Users/shc167/Documents/project/TR02/TR02.102/Tally_DetectRepeats_woE/DetectRepeats_woE'
+predict_df$repeatID <- NA
+output_lines <- NULL
+in_seqIDs <- c()
+out_file_index=1
+output_nchar=0
+out_n_repeats=0
+out_file_index=1
+for (row_i in seq(nrow(predict_df))) {
+	seqID <- predict_df[row_i, 'seqID']
+	in_seqIDs <- c(in_seqIDs, seqID)
+	output_lines <- paste0('#', row_i, '_', predict_df[row_i, 'seqID'])
+	reps <- extractAt(faa_h[[predict_df[row_i, "Index"]]], IRanges(predict_df[[row_i, "Left"]], predict_df[[row_i, "Right"]]))
+	reps <- AlignSeqs(reps, verbose=FALSE)
+	reps <- gsub('[Xx.]','-',as.character(reps), ignore.case = TRUE)
+	output_lines <- paste0(output_lines, '\n', paste(reps, collapse='\n'))
+	if (output_nchar + nchar(output_lines) > 18000) {
+		out_file_index=out_file_index+1
+		output_nchar = 0
+	}
+	write(output_lines, file=paste0(out_prefix, '.', out_file_index,'.fastally'), append=TRUE)
+	output_nchar = output_nchar + nchar(output_lines)
+	out_n_repeats = out_n_repeats + 1
+	output_lines <- NULL
+	prev_seqID <- seqID
+}
+cat("n_seq_in = ", length(unique(in_seqIDs)), ", out_n_repeats = ", out_n_repeats,'\n', sep='')
+n_seq_in = 1312, out_n_repeats = 2679
+
+# read in Tally results
+in_dir <- '/Users/shc167/Documents/project/TR02/TR02.102/Tally_DetectRepeats_woE'
+filenames <- list.files(path = in_dir, pattern = '*.csv', full.names = TRUE, recursive = FALSE)
+Tally_result_all <- NULL
+for (filename_h in filenames) {
+	Tally_result_h <- read.table(filename_h, header = TRUE, sep= ",", comment.char="")
+	Tally_result_all <- rbind(Tally_result_all, Tally_result_h)
+}
+Tally_result_all$row_i <- gsub('#([0-9]+)_.+','\\1',Tally_result_all$Id)
+Tally_result_all$seqID <- gsub('#[0-9]+_(.+)','\\1',Tally_result_all$Id)
+Tally_DetectRepeats_woE_merged <- merge(x=DetectRepeats_woE_TP_04012025, y=Tally_result_all, by.x = 'row.names', by.y = 'row_i', all=TRUE)
+
+pdf(file = "/Users/shc167/Documents/project/TR02/TR02.102/Tally_val_DetectRepeats.1.pdf", width = 5, height = 5.5)
+plot(x=Tally_DetectRepeats_woE_merged$Score, y=Tally_DetectRepeats_woE_merged$Tally, log='x', main='Tally validation for DetectRepeats (w/o empirical)', xlab='DetectRepeats Score', ylab='Tally score', pch=16, col='#00000033', cex=0.5)
+lines(smooth.spline(x=Tally_DetectRepeats_woE_merged$Score, y=Tally_DetectRepeats_woE_merged$Tally, df=8), col='red',lwd=1)
+abline(v=8, col="gray",lty = 1)
+abline(h=0.5, col="gray",lty = 1)
+dev.off()
+
+# no point at bottom right
+nrow(Tally_DetectRepeats_woE_merged[(Tally_DetectRepeats_woE_merged$Score>=8 & Tally_DetectRepeats_woE_merged$Tally>=0.5),])
+[1] 171 # Tally v; DetectRepeats v
+
+nrow(Tally_DetectRepeats_woE_merged[(Tally_DetectRepeats_woE_merged$Score<8 & Tally_DetectRepeats_woE_merged$Tally>=0.5),])
+[1] 950 # Tally v; DetectRepeats x
+
+nrow(Tally_DetectRepeats_woE_merged[(Tally_DetectRepeats_woE_merged$Score<8 & Tally_DetectRepeats_woE_merged$Tally<0.5),])
+[1] 421 # Tally x; DetectRepeats x
+
+nrow(Tally_DetectRepeats_woE_merged[(Tally_DetectRepeats_woE_merged$Score>=8 & Tally_DetectRepeats_woE_merged$Tally<0.5),])
+[1] 0 # Tally x; DetectRepeats v
+
+
+############################### HHrepID ###############################
+# Convert results from HHrepID into fastally
+rsync -avz --progress /Users/shc167/Documents/scripts_TR/parse_HHrepID2Tally.1.r shc167@cluster.csb.pitt.edu:/net/dali/home/mscbio/shc167/project/TR02/TR02.102/
+
+srun --pty -p dept_cpu /bin/bash
+mkdir /net/dali/home/mscbio/shc167/project/TR02/TR02.102/Tally_HHrepID
+Rscript ~/project/TR02/TR02.102/parse_HHrepID2Tally.1.r --in_dir=/net/dali/home/mscbio/shc167/project/TR02/TR02.102/TP_out_HHrepID/ --out_dir=/net/dali/home/mscbio/shc167/project/TR02/TR02.102/Tally_HHrepID/HHrepID.
+n_seq_in = 930, out_n_repeats = 1906
+rsync -avz --progress shc167@cluster.csb.pitt.edu:/net/dali/home/mscbio/shc167/project/TR02/TR02.102/Tally_HHrepID /Users/shc167/Documents/project/TR02/TR02.102/
+
+# read in Tally results
+in_dir <- '/Users/shc167/Documents/project/TR02/TR02.102/Tally_HHrepID/'
+filenames <- list.files(path = in_dir, pattern = '*.csv', full.names = TRUE, recursive = FALSE)
+Tally_result_all <- NULL
+for (filename_h in filenames) {
+	Tally_result_h <- read.table(filename_h, header = TRUE, sep= ",", comment.char="")
+	Tally_result_all <- rbind(Tally_result_all, Tally_result_h)
+}
+# read in HHrepID results
+TP_out_HHrepID <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/TP_out_HHrepID.tsv', header = TRUE, sep= "\t")
+TP_out_HHrepID$Id <- paste0('#', TP_out_HHrepID$seqID, '_', TP_out_HHrepID$Type)
+TP_out_HHrepID <- unique(TP_out_HHrepID[,c('Id', 'Repeats','P.value')])
+# merge
+Tally_HHrepID_merged <- merge(x=TP_out_HHrepID, y=Tally_result_all, by = 'Id', all=TRUE)
+# plot
+pdf(file = "~/Documents/project/TR02/TR02.102/Tally_val_HHrepID.1.pdf", width = 5, height = 5.5)
+plot(x=Tally_HHrepID_merged$P.value, y=Tally_HHrepID_merged$Tally, log='x', main='Tally validation for HHrepID', xlab='HHrepID P-value', ylab='Tally Score', pch=16, col='#00000033', cex=0.5, xlim=c(1,1e-20,))
+lines(smooth.spline(x=Tally_HHrepID_merged$P.value, y=Tally_HHrepID_merged$Tally, df=8), col='red',lwd=1)
+abline(v=0.001, col="gray",lty = 1)
+abline(h=0.5, col="gray",lty = 1)
+dev.off() 
+nrow(Tally_HHrepID_merged[(Tally_HHrepID_merged$P.value<=0.001 & Tally_HHrepID_merged$Tally<0.5),])
+[1] 91 # HHrepID v; Tally x; FP
+
+
+
+############################### TRUST ###############################
+# Convert results from TRUST into fastally
+Rscript /Users/shc167/Documents/scripts_TR/parse_trust.5.r --in_file=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_TRUST/TPs_v5_rename.out --out_prefix=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_TRUST/TP
+n_seq_in = 1312, out_n_repeats = 719
+Rscript /Users/shc167/Documents/scripts_TR/parse_trust.5.r --in_file=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_TRUST/FPs_v5_rename.out --out_prefix=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_TRUST/FP
+n_seq_in = 1312, out_n_repeats = 216
+
+# Evaluate
+Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.2.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_TRUST/TP_out_TRUST.tsv --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_TRUST/FP_out_TRUST.tsv --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_TRUST_07112025.rds --num_cutoffs=1000 --colname_seqID='seqID' --colname_start='start' --colname_end='end' --colname_score='score_sum'
+
+# read in Tally results
+in_dir <- '/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_TRUST/'
+filenames <- list.files(path = in_dir, pattern = '*.csv', full.names = TRUE, recursive = FALSE)
+Tally_result_all <- NULL
+for (filename_h in filenames) {
+	Tally_result_h <- read.table(filename_h, header = TRUE, sep= ",", comment.char="")
+	Tally_result_all <- rbind(Tally_result_all, Tally_result_h)
+}
+# read in TRUST results
+TP_out_TRUST <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_TRUST/TP_out_TRUST.tsv', header = TRUE, sep= "\t")
+# merge
+TP_out_TRUST$Id <- paste0('#', TP_out_TRUST$seqID, '_', TP_out_TRUST$type)
+TP_out_TRUST <- unique(TP_out_TRUST[,c('Id', 'score_sum')])
+Tally_TRUST_merged <- merge(x=TP_out_TRUST, y=Tally_result_all, by = 'Id', all=TRUE)
+# plot
+pdf(file = "~/Documents/project/TR02/TR02.102/Tally_val_TRUST.1.pdf", width = 5, height = 5.5)
+plot(x=Tally_TRUST_merged$score_sum, y=Tally_TRUST_merged$Tally, log='x', main='Tally validation for TRUST', xlab='TRUST Score', ylab='Tally Score', pch=16, col='#00000033', cex=0.5)
+lines(smooth.spline(x=Tally_TRUST_merged$score_sum, y=Tally_TRUST_merged$Tally, df=10), col='red',lwd=1)
+#abline(v=0.001, col="gray",lty = 1)
+abline(h=0.5, col="gray",lty = 1)
+dev.off() 
+nrow(Tally_TRUST_merged[(Tally_TRUST_merged$Tally<0.5),])
+[1] 149 # TRUST ?; Tally x; FP
+nrow(Tally_TRUST_merged[(Tally_TRUST_merged$Tally>=0.5),])
+[1] 570
+
+############################### T-REKS ###############################
+mkdir /Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS
+java -jar /Users/shc167/BioInfoApp/T-REKS/T-Reks.jar -overlapfilter -similarity=0 -infile=/Users/shc167/Documents/project/TR02/TR02.102/TPs_v5_rename.faa | grep -v 'repeat not found in sequence' > /Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/TPs_v5_rename_07092025.out
+java -jar /Users/shc167/BioInfoApp/T-REKS/T-Reks.jar -overlapfilter -similarity=0 -infile=/Users/shc167/Documents/project/TR02/TR02.102/FPs_v5_rename.faa | grep -v 'repeat not found in sequence' > /Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/FPs_v5_rename_07092025.out
+# Parse
+Rscript ~/Documents/scripts_TR/parse_treks.4.r --in_file=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/TPs_v5_rename_07092025.out --out_prefix=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/TP
+Rscript ~/Documents/scripts_TR/parse_treks.4.r --in_file=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/FPs_v5_rename_07092025.out --out_prefix=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/FP
+n_seq_in = 182, out_n_repeats = 215
+n_seq_in = 171, out_n_repeats = 235
+# Evaluate
+Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.2.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/TP_out_T-REKS.tsv --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/FP_out_T-REKS.tsv --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_T-REKS_07092025.rds --num_cutoffs=1000 --colname_seqID='seqID' --colname_start='start' --colname_end='end' --colname_score='Psim' --default_score=0.7
+
+# read in Tally results
+in_dir <- '/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/'
+filenames <- list.files(path = in_dir, pattern = '*.csv', full.names = TRUE, recursive = FALSE)
+Tally_result_all <- NULL
+for (filename_h in filenames) {
+	Tally_result_h <- read.table(filename_h, header = TRUE, sep= ",", comment.char="")
+	Tally_result_all <- rbind(Tally_result_all, Tally_result_h)
+}
+# read in T-REKS results
+TP_out_TREKS <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/TP_out_T-REKS.tsv', header = TRUE, sep= "\t")
+# merge
+TP_out_TREKS$Id <- paste0('#', TP_out_TREKS$seqID, '_', TP_out_TREKS$repeatID)
+Tally_TREKS_merged <- merge(x=TP_out_TREKS, y=Tally_result_all, by = 'Id', all=TRUE)
+# plot
+pdf(file = "~/Documents/project/TR02/TR02.102/Tally_val_T-REKS.1.pdf", width = 5, height = 5.5)
+plot(x=Tally_TREKS_merged$Psim.x, y=Tally_TREKS_merged$Tally, main='Tally validation for T-REKS', xlab='T-REKS Psim', ylab='Tally Score', pch=16, col='#00000033', cex=0.5)
+lines(smooth.spline(x=Tally_TREKS_merged$Psim.x, y=Tally_TREKS_merged$Tally, df=8), col='red',lwd=1)
+abline(v=0.7, col="gray",lty = 1)
+abline(h=0.5, col="gray",lty = 1)
+dev.off() 
+nrow(Tally_TREKS_merged[(Tally_TREKS_merged$Psim.x>=0.7 & Tally_TREKS_merged$Tally<0.5),])
+[1] 31 # T-REKS v; Tally x; FP
+
+
+############################### XSTREAM ###############################
+predict_df <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_XSTREAM/XSTREAM_TPs_v5_rename_i0.7_g3_m5_e2.0_chart.xls', header = TRUE, sep= "\t", quote="", fill=FALSE, comment.char="")
+out_prefix <- '/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_XSTREAM/XSTREAM_TP'
+predict_df$repeatID <- NA
+prev_seqID <- ''
+output_lines <- NULL
+in_seqIDs <- c()
+out_file_index=1
+output_nchar=0
+out_n_repeats=0
+for (row_i in seq(nrow(predict_df))) {
+	seqID <- predict_df[row_i, 'identifier']
+	in_seqIDs <- c(in_seqIDs, seqID)
+	repeatID = sum(in_seqIDs==seqID)
+	output_lines <- paste0('#', seqID, '_', repeatID)
+	predict_df[row_i, 'repeatID'] <- repeatID
+	MSA_h <- gsub('[Xx.]', '-', predict_df[row_i, 'multiple.sequence.alignment'], ignore.case = TRUE)
+	MSA_h <- unlist(strsplit(MSA_h, split=' '))
+	addgap <- paste0(replicate(nchar(MSA_h[1]) - nchar(MSA_h[length(MSA_h)]), "-"), collapse='')
+	MSA_h[length(MSA_h)] <- paste0(MSA_h[length(MSA_h)], addgap)
+	output_lines <- paste0(output_lines, '\n', paste(MSA_h, collapse='\n'))
+	if (output_nchar + nchar(output_lines) > 18000) {
+		out_file_index=out_file_index+1
+		output_nchar = 0
+	}
+	write(output_lines, file=paste0(out_prefix, '.', out_file_index,'.fastally'), append=TRUE)
+	output_nchar = output_nchar + nchar(output_lines)
+	out_n_repeats = out_n_repeats + 1
+	output_lines <- NULL
+	prev_seqID <- seqID
+}
+cat("n_seq_in = ", length(unique(in_seqIDs)), ", out_n_repeats = ", out_n_repeats,'\n', sep='')
+# n_seq_in = 75, out_n_repeats = 88
+
+# read in Tally results
+in_dir <- '/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_XSTREAM/'
+filenames <- list.files(path = in_dir, pattern = '*.csv', full.names = TRUE, recursive = FALSE)
+Tally_result_all <- NULL
+for (filename_h in filenames) {
+	Tally_result_h <- read.table(filename_h, header = TRUE, sep= ",", comment.char="")
+	Tally_result_all <- rbind(Tally_result_all, Tally_result_h)
+}
+# read in XSTREAM results
+TP_out_XSTREAM <- predict_df
+# merge
+TP_out_XSTREAM$Id <- paste0('#', TP_out_XSTREAM$identifier, '_', TP_out_XSTREAM$repeatID)
+Tally_XSTREAM_merged <- merge(x=TP_out_XSTREAM, y=Tally_result_all, by = 'Id', all=TRUE)
+# plot
+pdf(file = "~/Documents/project/TR02/TR02.102/Tally_val_XSTREAM.1.pdf", width = 5, height = 5.5)
+plot(x=Tally_XSTREAM_merged$consensus.error, y=Tally_XSTREAM_merged$Tally, main='Tally validation for XSTREAM', xlab='XSTREAM consensus error', ylab='Tally Score', pch=16, col='#00000033', cex=0.5, xlim=c(0.3,0))
+lines(smooth.spline(x=Tally_XSTREAM_merged$consensus.error, y=Tally_XSTREAM_merged$Tally, df=8), col='red',lwd=1)
+abline(v=0.2, col="gray",lty = 1)
+abline(h=0.5, col="gray",lty = 1)
+dev.off() 
+nrow(Tally_XSTREAM_merged[(Tally_XSTREAM_merged$consensus.error<=0.2 & Tally_XSTREAM_merged$Tally<0.5),])
+[1] 13 # XSTREAM v; Tally x; FP
+
+
+############################### RADAR ###############################
+# Convert results from HHrepID into fastally
+rsync -avz --progress /Users/shc167/Documents/scripts_TR/parse_RADAR.2.r shc167@cluster.csb.pitt.edu:/net/dali/home/mscbio/shc167/project/TR02/TR02.102/
+mkdir /net/dali/home/mscbio/shc167/project/TR02/TR02.102/Tally_RADAR/
+
+srun --pty -p dept_cpu /bin/bash
+Rscript /net/dali/home/mscbio/shc167/project/TR02/TR02.102/parse_RADAR.2.r --in_dir=/net/dali/home/mscbio/shc167/project/TR02/TR02.102/TP_out_RADAR/ --out_prefix=/net/dali/home/mscbio/shc167/project/TR02/TR02.102/Tally_RADAR/TP
+Rscript /net/dali/home/mscbio/shc167/project/TR02/TR02.102/parse_RADAR.2.r --in_dir=/net/dali/home/mscbio/shc167/project/TR02/TR02.102/FP_out_RADAR/ --out_prefix=/net/dali/home/mscbio/shc167/project/TR02/TR02.102/Tally_RADAR/FP
+n_seq_in = 1312, out_n_repeats = 1353
+n_seq_in = 1312, out_n_repeats = 1228
+
+rsync -avz --progress shc167@cluster.csb.pitt.edu:/net/dali/home/mscbio/shc167/project/TR02/TR02.102/Tally_RADAR /Users/shc167/Documents/project/TR02/TR02.102/
+
+# read in Tally results
+in_dir <- '/Users/shc167/Documents/project/TR02/TR02.102/Tally_RADAR/'
+filenames <- list.files(path = in_dir, pattern = '*.csv', full.names = TRUE, recursive = FALSE)
+Tally_result_all <- NULL
+for (filename_h in filenames) {
+	Tally_result_h <- read.table(filename_h, header = TRUE, sep= ",", comment.char="")
+	Tally_result_all <- rbind(Tally_result_all, Tally_result_h)
+}
+# read in RADAR results
+TP_out_RADAR <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/TP_out_RADAR.tsv', header = TRUE, sep= "\t")
+TP_out_RADAR$Id <- paste0('#', TP_out_RADAR$seqID, '_', TP_out_RADAR$Level)
+TP_out_RADAR <- unique(TP_out_RADAR[,c('Id', 'Total_Score')])
+# merge
+Tally_RADAR_merged <- merge(x=TP_out_RADAR, y=Tally_result_all, by = 'Id', all=TRUE)
+# plot
+pdf(file = "~/Documents/project/TR02/TR02.102/Tally_val_RADAR.1.pdf", width = 5, height = 5.5)
+plot(x=Tally_RADAR_merged$Total_Score, y=Tally_RADAR_merged$Tally, log='x', main='Tally validation for RADAR', xlab='RADAR Total_Score', ylab='Tally Score', pch=16, col='#00000033', cex=0.5)
+lines(smooth.spline(x=Tally_RADAR_merged$Total_Score, y=Tally_RADAR_merged$Tally, df=8), col='red',lwd=1)
+abline(h=0.5, col="gray",lty = 1)
+dev.off() 
+nrow(Tally_RADAR_merged[Tally_RADAR_merged$Tally<0.5,])
+[1] 91 # RADAR v; Tally x; FP
+
+
+########### plot all tools' Tally ###########
+pdf(file = "/Users/shc167/Documents/project/TR02/TR02.102/Tally_val_alltools.2.pdf", width = 7, height = 9)
+par(mfrow = c(4, 2), mar=c(4,4,2,1)) # down, left,
+
+plot(x=Tally_DetectRepeats_wE_merged$Score, y=Tally_DetectRepeats_wE_merged$Tally, log='x', main='DetectRepeats (w/ empirical)', xlab='DetectRepeats Score', ylab='Tally score', pch=16, col='#00000033', cex=0.5)
+lines(smooth.spline(x=Tally_DetectRepeats_wE_merged$Score, y=Tally_DetectRepeats_wE_merged$Tally, df=8), col='red',lwd=1)
+abline(v=8, col="gray",lty = 1)
+abline(h=0.5, col="gray",lty = 1)
+
+plot(x=Tally_DetectRepeats_woE_merged$Score, y=Tally_DetectRepeats_woE_merged$Tally, log='x', main='DetectRepeats (w/o empirical)', xlab='DetectRepeats Score', ylab='Tally score', pch=16, col='#00000033', cex=0.5)
+lines(smooth.spline(x=Tally_DetectRepeats_woE_merged$Score, y=Tally_DetectRepeats_woE_merged$Tally, df=8), col='red',lwd=1)
+abline(v=8, col="gray",lty = 1)
+abline(h=0.5, col="gray",lty = 1)
+
+plot(x=Tally_HHrepID_merged$P.value, y=Tally_HHrepID_merged$Tally, log='x', main='HHrepID', xlab='HHrepID P-value', ylab='Tally Score', pch=16, col='#00000033', cex=0.5, xlim=c(1,1e-20))
+lines(smooth.spline(x=Tally_HHrepID_merged$P.value, y=Tally_HHrepID_merged$Tally, df=8), col='red',lwd=1)
+abline(v=0.001, col="gray",lty = 1)
+abline(h=0.5, col="gray",lty = 1)
+
+plot(x=Tally_RADAR_merged$Total_Score, y=Tally_RADAR_merged$Tally, log='x', main='RADAR', xlab='RADAR Total Score', ylab='Tally Score', pch=16, col='#00000033', cex=0.5)
+lines(smooth.spline(x=Tally_RADAR_merged$Total_Score, y=Tally_RADAR_merged$Tally, df=8), col='red',lwd=1)
+abline(h=0.5, col="gray",lty = 1)
+
+plot(x=Tally_TRUST_merged$score_sum, y=Tally_TRUST_merged$Tally, log='x', main='TRUST', xlab='TRUST Score', ylab='Tally Score', pch=16, col='#00000033', cex=0.5)
+lines(smooth.spline(x=Tally_TRUST_merged$score_sum, y=Tally_TRUST_merged$Tally, df=8), col='red',lwd=1)
+#abline(v=0.001, col="gray",lty = 1)
+abline(h=0.5, col="gray",lty = 1)
+
+plot(x=Tally_TREKS_merged$Psim.x, y=Tally_TREKS_merged$Tally, main='T-REKS', xlab='T-REKS Psim', ylab='Tally Score', pch=16, col='#00000033', cex=0.5)
+lines(smooth.spline(x=Tally_TREKS_merged$Psim.x, y=Tally_TREKS_merged$Tally, df=8), col='red',lwd=1)
+abline(v=0.7, col="gray",lty = 1)
+abline(h=0.5, col="gray",lty = 1)
+
+plot(x=Tally_XSTREAM_merged$consensus.error, y=Tally_XSTREAM_merged$Tally, main='XSTREAM', xlab='XSTREAM consensus error', ylab='Tally Score', pch=16, col='#00000033', cex=0.5, xlim=c(0.3,0))
+lines(smooth.spline(x=Tally_XSTREAM_merged$consensus.error, y=Tally_XSTREAM_merged$Tally, df=8), col='red',lwd=1)
+abline(v=0.2, col="gray",lty = 1)
+abline(h=0.5, col="gray",lty = 1)
+
+plot(x=Tally_CESymm_merged$V11, y=Tally_CESymm_merged$Tally, main='CE-Symm', xlab='CE-Symm average TM-score', ylab='Tally score', pch=16, col='#00000033', cex=0.5)
+lines(smooth.spline(x=Tally_CESymm_merged$V11, y=Tally_CESymm_merged$Tally, df=8), col='red',lwd=1)
+abline(h=0.5, col="gray",lty = 1)
+
+dev.off()
+
+save(Tally_DetectRepeats_woE_merged,
+Tally_DetectRepeats_wE_merged,
+Tally_HHrepID_merged,
+Tally_RADAR_merged,
+Tally_TRUST_merged,
+Tally_TREKS_merged,
+Tally_XSTREAM_merged,
+Tally_CESymm_merged,
+file='~/Documents/project/TR02/TR02.102/tally.RData', compress="xz")
