@@ -3,7 +3,7 @@ Analysis_enrichment_function.txt
 Shu-Ting Cho <shutingcho@pitt.edu>
 
 # Tandem repeat enrichment analysis for functional groups
-# Fig4B
+# Fig. S2
 
 # Step0: Prepare source data
 # Step1: Classify protein function
@@ -33,7 +33,7 @@ Rscript write_Kgroup_faa.r K00001
 
 
 # Step2: Run DetectRepeats
-Rscript DECIPHER_DetectRepeats.19.r K00001 1 100
+Rscript DECIPHER_DetectRepeats_batch.1.r --in_file=${seqID_h}.faa.gz --batch_i=${batch_i}
 
 
 
@@ -46,9 +46,10 @@ Rscript DECIPHER_DetectRepeats.19.r K00001 1 100
 
 # Use prokaryote as an example
 
+##################### Prokaryotes ####################
+prok_Kgroup_Brite_TR <- readRDS('prok_Kgroup_Brite_TR_v341.rds')
 # Step3.1: x-axis: Fraction of genomes have the Kgroup (perc_genomes)
 load('Kgroup_mt.RData')
-prok_Kgroup_Brite_TR <- readRDS('prok_Kgroup_Brite_TR.rds')
 inDir <- 'pro_Kgroup_faa/'
 Kgroups <- rownames(prok_Kgroup_Brite_TR)
 
@@ -79,98 +80,217 @@ prok_Kgroup_Brite_TR$PID <- PID_tab$V2
 # Step3.3:
 # y-axis: Fraction of Kgroup have tandem repeat (perc_TR_genes)
 # dot size: DetectRepeats average score (Scores_highest_ave) 
-prok_Kgroup_Brite_TR <- prok_Kgroup_Brite_TR[,c(1:6, 17, 20, 21, 22)]
-prok_Kgroup_Brite_TR$n_TR_genes <- 0
-prok_Kgroup_Brite_TR$Scores_highest_ave <- 0
-for (Kgroup_h in prok_Kgroup_Brite_TR$KgroupID) {
+prok_Kgroup_Brite_TR_05012025 <- prok_Kgroup_Brite_TR
+prok_Kgroup_Brite_TR_05012025$n_TR_genes <- 0
+prok_Kgroup_Brite_TR_05012025$Scores_highest_ave <- 0
+prok_Kgroup_Brite_TR_05012025$perc_TR_genes <- 0
+for (Kgroup_h in prok_Kgroup_Brite_TR_05012025$KgroupID) {
 	print(Kgroup_h)
-	TR_h <- readRDS(paste('DetectRepeats_Kgroup_prok/', Kgroup_h, '.tr', sep=''))
+	TR_h <- readRDS(paste('/Users/shc167/Documents/project/TR02/TR02.106/DetectRepeats_prok/', Kgroup_h, '.tr', sep=''))
 	if (nrow(TR_h) > 0) {
 		# for perc_TR_genes
-		prok_Kgroup_Brite_TR[Kgroup_h,'n_TR_genes'] <- length(unique(TR_h$Index))
+		prok_Kgroup_Brite_TR_05012025[Kgroup_h,'n_TR_genes'] <- length(unique(TR_h$Index))
 		# Scores_highest_ave
 		scores_h <- c()
 		for (seq_index in unique(TR_h$Index)) {
 			scores_h <- c(scores_h, max(TR_h[which(TR_h$Index == seq_index), 'Score']))
 		}
-		prok_Kgroup_Brite_TR[Kgroup_h,'Scores_highest_ave'] <- mean(scores_h)
+		prok_Kgroup_Brite_TR_05012025[Kgroup_h,'Scores_highest_ave'] <- mean(scores_h)
 	}
 }
-prok_Kgroup_Brite_TR$perc_TR_genes <- prok_Kgroup_Brite_TR$n_TR_genes/prok_Kgroup_Brite_TR$n_total_genes
-
+prok_Kgroup_Brite_TR_05012025$perc_TR_genes <- prok_Kgroup_Brite_TR_05012025$n_TR_genes/prok_Kgroup_Brite_TR_05012025$n_total_genes
 # label text
-prok_Kgroup_Brite_TR$label_text <- prok_Kgroup_Brite_TR$KgroupID
-prok_Kgroup_Brite_TR[prok_Kgroup_Brite_TR$perc_TR_genes<0.5, 'label_text'] <- ''
-prok_Kgroup_Brite_TR[prok_Kgroup_Brite_TR$perc_genomes<0.8, 'label_text'] <- ''
+prok_Kgroup_Brite_TR_05012025$label_text <- prok_Kgroup_Brite_TR_05012025$KgroupID
+prok_Kgroup_Brite_TR_05012025[(prok_Kgroup_Brite_TR_05012025$perc_TR_genes<0.5 | prok_Kgroup_Brite_TR_05012025$perc_genomes<0.8), 'label_text'] <- ''
+sum(prok_Kgroup_Brite_TR_05012025$label_text!='')
+[1] 4
+# sort by PID
+prok_Kgroup_Brite_TR_05012025 <- prok_Kgroup_Brite_TR_05012025[order(prok_Kgroup_Brite_TR_05012025$PID),]
+saveRDS(prok_Kgroup_Brite_TR_05012025, file='prok_Kgroup_Brite_TR_05012025.rds')
 
 
 
-# Step3.4: Scatter plot
+######### plot #########
+# Create a color palette and assign color
+colors <- colorRampPalette(c("white", "black"))(100)
+PID_colors <- colors[as.numeric(cut(c(prok_Kgroup_Brite_TR_05012025$PID,euk_Kgroup_Brite_TR_05012025$PID), breaks = 100))] # Map 'z' values to the color palette
+prok_Kgroup_Brite_TR_05012025$PID_colors <- PID_colors[1:length(prok_Kgroup_Brite_TR_05012025$PID)]
+euk_Kgroup_Brite_TR_05012025$PID_colors <- PID_colors[(length(prok_Kgroup_Brite_TR_05012025$PID)+1):length(PID_colors)]
+# TR scores distribution
+summary(prok_Kgroup_Brite_TR_05012025$Scores_highest_ave)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  0.000   0.000   0.000   2.569   0.000 217.080 
+summary(euk_Kgroup_Brite_TR_05012025$Scores_highest_ave)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  0.000   0.000   8.536  11.788  15.674 558.249 
+
+#### Scatter plot with ggplot ####
 library(ggplot2)
 library(ggrepel)
+# prok
+pdf(file = "~/Documents/project/TR02/TR02.106/ggplot_prok.1.pdf", width = 5, height = 20)
+df_h <- prok_Kgroup_Brite_TR_05012025[prok_Kgroup_Brite_TR_05012025$Scores_highest_ave>=8,]
+p <- ggplot(data = df_h, aes(x=perc_genomes, y=perc_TR_genes)) +
+  geom_point(pch = 16, color = 'black', aes(size=Scores_highest_ave, alpha=PID)) +
+  geom_text_repel(aes(label = label_text), size = 3, max.overlaps=50) + 
+  theme_bw()
+p + facet_grid(lv1 ~ .)
+dev.off()
+# euk
+pdf(file = "~/Documents/project/TR02/TR02.106/ggplot_euk.1.pdf", width = 5, height = 20)
+df_h <- euk_Kgroup_Brite_TR_05012025[euk_Kgroup_Brite_TR_05012025$Scores_highest_ave>=8,]
+p <- ggplot(data = df_h, aes(x=perc_genomes, y=perc_TR_genes)) +
+  geom_point(pch = 16, color = 'black', aes(size=Scores_highest_ave, alpha=PID)) +
+  geom_text_repel(aes(label = label_text), size = 3, max.overlaps=50) + 
+  theme_bw()
+p + facet_grid(lv1 ~ .)
+dev.off()
 
-# sort data points by PID: darker points (high PID) will be in the foreground
-prok_Kgroup_Brite_TR_sortPID <- prok_Kgroup_Brite_TR[order(prok_Kgroup_Brite_TR$PID),]
-euk_Kgroup_Brite_TR_sortPID <- euk_Kgroup_Brite_TR[order(euk_Kgroup_Brite_TR$PID),]
-
+#### Scatter plot base R ####
 Brite_lv1_names <- c("09100 Metabolism","09120 Genetic Information Processing","09130 Environmental Information Processing","09140 Cellular Processes","09150 Organismal Systems","09160 Human Diseases") 
 
-pdf(file = "BriteLv1_scatter.5.pdf", width = 2.43448819, height = 7.30346457)
+pdf(file = "~/Documents/project/TR02/TR02.106/BriteLv1_scatter.1.pdf", width = 2.43448819, height = 7.30346457)
 par(mfrow = c(6, 2), mar=c(0,0,0,0))
 for (i in seq_along(Brite_lv1_names)) {
 	group_name <- Brite_lv1_names[i]
-	# Scatter plot Prokaryotes
-    df_h <- prok_Kgroup_Brite_TR_sortPID[prok_Kgroup_Brite_TR_sortPID$lv1==group_name,]
-	df_h <- df_h[df_h$Scores_highest_ave>=10,]
-	df_h$perc_TR_genes <- df_h$perc_TR_genes
-	df_h$perc_genomes <- df_h$perc_genomes
-	if (i==6) {
-		plot(y=df_h$perc_TR_genes, x=df_h$perc_genomes, 
-		pch = 16,
-		col = df_h$PID_colors,
-		cex = sqrt(df_h$Scores_highest_ave)/15,
-		xlim=c(0, 1), 
-		ylim=c(0, 1),
-		ann=FALSE)
-	} else {
-		plot(y=df_h$perc_TR_genes, x=df_h$perc_genomes, 
-		xaxt='n',
-		pch = 16,
-		col = df_h$PID_colors,
-		cex = sqrt(df_h$Scores_highest_ave)/15,
-		xlim=c(0, 1), 
-		ylim=c(0, 1),
-		ann=FALSE)
-	}
-	low <- lowess(df_h$perc_genomes, df_h$perc_TR_genes, f=1)
+	xaxt <- ifelse(i==6, 's', 'n')
+	# Prokaryotes
+	df_h <- prok_Kgroup_Brite_TR_05012025[prok_Kgroup_Brite_TR_05012025$lv1==group_name,]
+	df_h <- df_h[df_h$Scores_highest_ave>=8,] # default minScore=8
+	plot(y=df_h$perc_TR_genes, x=df_h$perc_genomes,
+	xaxt = xaxt,
+	pch = 16,
+	col = df_h$PID_colors,
+	cex = sqrt(df_h$Scores_highest_ave)/15,
+	xlim=c(0, 1), 
+	ylim=c(0, 1),
+	ann=FALSE)
+	low <- lowess(df_h$perc_genomes, df_h$perc_TR_genes, f=0.9)
 	lines(low, lty = 1, col = 3, lwd = 2)
-
-	# Scatter plot Eukaryotes
-	df_h <- euk_Kgroup_Brite_TR_sortPID[euk_Kgroup_Brite_TR_sortPID$lv1==group_name,]
-	df_h <- df_h[df_h$Scores_highest_ave>=10,]
-	df_h$perc_TR_genes <- df_h$perc_TR_genes
-	df_h$perc_genomes <- df_h$perc_genomes
-	if (i==6) {
-		plot(y=df_h$perc_TR_genes, x=df_h$perc_genomes, 
-		yaxt='n',
-		pch = 16,
-		col = df_h$PID_colors,
-		cex = sqrt(df_h$Scores_highest_ave)/15,
-		xlim=c(0, 1), 
-		ylim=c(0, 1),
-		ann=FALSE)
-	} else {
-		plot(y=df_h$perc_TR_genes, x=df_h$perc_genomes, 
-		xaxt='n',
-		yaxt='n',
-		pch = 16,
-		col = df_h$PID_colors,
-		cex = sqrt(df_h$Scores_highest_ave)/15,
-		xlim=c(0, 1), 
-		ylim=c(0, 1),
-		ann=FALSE)
-	}
-	low <- lowess(df_h$perc_genomes, df_h$perc_TR_genes, f=1)
+	# add label
+	text(x = df_h$perc_genomes, y = df_h$perc_TR_genes, labels = df_h$label_text, cex = 0.8)
+	# Eukaryotes
+	df_h <- euk_Kgroup_Brite_TR_05012025[euk_Kgroup_Brite_TR_05012025$lv1==group_name,]
+	df_h <- df_h[df_h$Scores_highest_ave>=8,] # default minScore=8
+	plot(y=df_h$perc_TR_genes, x=df_h$perc_genomes, 
+	xaxt = xaxt,
+	yaxt = 'n',
+	pch = 16,
+	col = df_h$PID_colors,
+	cex = sqrt(df_h$Scores_highest_ave)/15,
+	xlim=c(0, 1), 
+	ylim=c(0, 1),
+	ann=FALSE)
+	low <- lowess(df_h$perc_genomes, df_h$perc_TR_genes, f=0.9)
 	lines(low, lty = 1, col = 3, lwd = 2)
+	# add label
+	text(x = df_h$perc_genomes, y = df_h$perc_TR_genes, labels = df_h$label_text, cex = 0.8)
 }
 dev.off()
+
+pdf(file = "~/Documents/project/TR02/TR02.106/BriteLv1_scatter_legend.1.pdf", width = 2.43448819, height = 7.30346457)
+par(mfrow = c(6, 2), mar=c(0,0,0,0)) # down, left,
+plot(x=1, y=1, xaxt='n', yaxt='n', pch = 16, col = alpha(1, 1), cex = sqrt(10)/15)
+plot(x=1, y=1, xaxt='n', yaxt='n', pch = 16, col = alpha(1, 1), cex = sqrt(100)/15)
+plot(x=1, y=1, xaxt='n', yaxt='n', pch = 16, col = alpha(1, 1), cex = sqrt(200)/15)
+plot(x=1, y=1, xaxt='n', yaxt='n', pch = 16, col = alpha(1, 1), cex = sqrt(500)/15)
+dev.off()
+
+df_h <- prok_Kgroup_Brite_TR_05012025[prok_Kgroup_Brite_TR_05012025$Scores_highest_ave>=8,]
+dim(df_h)
+[1] 1804   14
+
+df_h <- euk_Kgroup_Brite_TR_05012025[euk_Kgroup_Brite_TR_05012025$Scores_highest_ave>=8,]
+dim(df_h)
+[1] 7186   14
+
+prok_Kgroup_Brite_TR_05012025[prok_Kgroup_Brite_TR_05012025$label_text=='K02945', c('perc_genomes', 'perc_TR_genes')]
+       perc_genomes perc_TR_genes
+K02945    0.8639523     0.9460196
+
+euk_Kgroup_Brite_TR_05012025[euk_Kgroup_Brite_TR_05012025$label_text=='K03006', c('perc_genomes', 'perc_TR_genes')]
+       perc_genomes perc_TR_genes
+K03006    0.9661017     0.9301587
+
+euk_Kgroup_Brite_TR_05012025[euk_Kgroup_Brite_TR_05012025$label_text=='K13111', c('perc_genomes', 'perc_TR_genes')]
+       perc_genomes perc_TR_genes
+K13111    0.8101695     0.9213918
+
+
+
+# enrichment analysis, statistical test
+# Fisher's exact test
+KEGG_Brite_EA <- function(Kgroup_Brite_TR, comp_name) {
+	ORA <- c()
+	category_names <- unique(Kgroup_Brite_TR$lv1)
+	contingency_table <- as.data.frame(matrix(0,nrow = length(category_names), ncol = 3))
+	rownames(contingency_table) <- category_names
+	colnames(contingency_table) <- c('n_gene_wTR','n_gene_woTR','n_Kgroup')
+	for (lv1_h in category_names) {
+		n_total_genes_Brite <- sum(Kgroup_Brite_TR[Kgroup_Brite_TR$lv1==lv1_h, 'n_total_genes'])
+		n_total_genes_wTR <- sum(Kgroup_Brite_TR[Kgroup_Brite_TR$lv1==lv1_h, 'n_TR_genes'])
+		n_total_genes_woTR <- n_total_genes_Brite-n_total_genes_wTR
+		contingency_table[lv1_h,] <- c(n_total_genes_wTR, n_total_genes_woTR, nrow(Kgroup_Brite_TR[Kgroup_Brite_TR$lv1==lv1_h,]))
+	}
+	contingency_table$perc_TR <- contingency_table$n_gene_wTR/(contingency_table$n_gene_wTR+contingency_table$n_gene_woTR)
+	par(mfrow = c(2, 4), mar=c(0,0,1,0))
+	for (lv1_h in category_names) {
+		dat <- contingency_table[lv1_h, c('n_gene_wTR','n_gene_woTR')]
+		dat['others',] <- colSums(contingency_table[rownames(contingency_table)!=lv1_h, c('n_gene_wTR','n_gene_woTR')])
+		mosaicplot(dat, main = lv1_h, color = TRUE)
+		pvalues <- c(fisher.test(dat, alternative='two.sided')$p.value, fisher.test(dat, alternative='less')$p.value, fisher.test(dat, alternative='greater')$p.value)
+		qvalues <- p.adjust(pvalues, method = "BH", n = length(category_names)*3)
+		if (qvalues[1]<0.05) {
+			if (qvalues[2]<0.05 & qvalues[2]<qvalues[3]) {
+				cat(comp_name, lv1_h, 'TR underrepresented', qvalues, '\n', sep='\t')
+			} else if (qvalues[3]<0.05 & qvalues[3]<qvalues[2]) {
+				cat(comp_name, lv1_h, 'TR overrepresented', qvalues, '\n', sep='\t')
+				ORA <- c(ORA, setNames(min(qvalues),lv1_h))
+			} else {
+				cat(comp_name, lv1_h, 'not significant', qvalues, '\n', sep='\t')
+			}
+		}
+	}
+	cat('### overrepresented categories ###\n')
+	print(ORA)
+	dat <- contingency_table[,c('n_gene_wTR','n_gene_woTR')]
+	par(mfrow = c(1, 1), mar=c(1,1,1,1))
+	mosaicplot(dat, main = paste(comp_name, 'Brite Lv1'), color = TRUE, las=2)
+	return(contingency_table)
+}
+
+
+prok_BriteLv1_TR_contingency <- KEGG_Brite_EA(prok_Kgroup_Brite_TR_05012025[prok_Kgroup_Brite_TR_05012025$Scores_highest_ave>=8,], 'Prok')
+# Prok	09100 Metabolism	TR underrepresented	0	0	1	
+# Prok	09190 Not Included in Pathway or Brite	TR underrepresented	4.981743e-51	4.981743e-51	1	
+# Prok	09120 Genetic Information Processing	TR overrepresented	6.110136e-41	1	6.110136e-41	
+# Prok	09180 Brite Hierarchies	TR overrepresented	0	1	0	
+# Prok	09130 Environmental Information Processing	TR overrepresented	0	1	0	
+# Prok	09140 Cellular Processes	TR overrepresented	9.908817e-93	1	9.908817e-93	
+# Prok	09160 Human Diseases	TR overrepresented	1.129076e-240	1	1.129076e-240	
+# ### overrepresented categories ###
+#       09120 Genetic Information Processing 
+#                               6.110136e-41 
+#                    09180 Brite Hierarchies 
+#                               0.000000e+00 
+# 09130 Environmental Information Processing 
+#                               0.000000e+00 
+#                   09140 Cellular Processes 
+#                               9.908817e-93 
+#                       09160 Human Diseases 
+#                              1.129076e-240 
+
+euk_BriteLv1_TR_contingency <- KEGG_Brite_EA(euk_Kgroup_Brite_TR_05012025[euk_Kgroup_Brite_TR_05012025$Scores_highest_ave>=8,], 'Euk')
+# Euk	09180 Brite Hierarchies	TR overrepresented	0	1	0	
+# Euk	09190 Not Included in Pathway or Brite	TR underrepresented	0	0	1	
+# Euk	09130 Environmental Information Processing	TR overrepresented	0	1	0	
+# Euk	09160 Human Diseases	TR overrepresented	0	1	0	
+# Euk	09150 Organismal Systems	TR overrepresented	0	1	0	
+# Euk	09100 Metabolism	TR underrepresented	0	0	1	
+# Euk	09120 Genetic Information Processing	TR underrepresented	0	0	1	
+# Euk	09140 Cellular Processes	TR underrepresented	0	0	1	
+# ### overrepresented categories ###
+#                    09180 Brite Hierarchies 09130 Environmental Information Processing 
+#                                          0                                          0 
+#                       09160 Human Diseases                   09150 Organismal Systems 
+#                                          0                                          0 

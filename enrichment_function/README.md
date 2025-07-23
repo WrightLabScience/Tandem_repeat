@@ -1,5 +1,5 @@
 # Enrichment analysis for functional groups
-To generate figure 4B
+To generate figure S2
 
 Notes:
  - Analysis_enrichment_function.txt
@@ -33,7 +33,7 @@ Step 2: Run DetectRepeats
 Run DetectRepeats on protein sequences of each KO group
 
 Scripts:
- - DECIPHER_DetectRepeats.19.r
+ - DECIPHER_DetectRepeats_batch.1.r
 
 
 Step 3: Calculate values and plot
@@ -45,7 +45,3 @@ shade: Average sequence identity of genes in Kgroup (PID)
 
 Scripts:
  - calculate_sample_PID.1.r
-
-File paths:
- - table_function_prok_TR.tsv
- - table_function_euk_TR.tsv
