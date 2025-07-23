@@ -3,7 +3,7 @@ Analysis_orthology_benchmark.txt
 Shu-Ting Cho <shutingcho@pitt.edu>
 
 # Benchmark sequence based tandem repeat detectors on orthologous sequences
-# Fig3C
+# Fig3CDE
 
 # step1: Multiple sequence alignment
 # step2: Run TR detecting tools and parsing the results
@@ -57,13 +57,13 @@ python parse_trust.4.py --in_file=trust/${seqID}.out --out_file=trust/${seqID}.t
 
 
 # T-REKS
-java -jar T-Reks.jar -similarity=0 -infile=${seqID}.fasta | grep -v 'repeat not found in sequence' > ${seqID}.out 
+java -jar T-Reks.jar -overlapfilter -similarity=0 -infile=${seqID}.fasta | grep -v 'repeat not found in sequence' > ${seqID}.out 
 python parse_treks.3.py --in_file=${seqID}.out --out_file=${seqID}.tr
 
 
 # XSTREAM
-java -Xmx1000m -Xms1000m -jar XSTREAM/xstream.jar ${seqID}.fas -i0.7 -I0 -z -o -a${seqID} # for aa
-java -Xmx1000m -Xms1000m -jar XSTREAM/xstream.jar ${seqID}.fas -n -i0.8 -I0 -z -o -a${seqID} # for nt
+java -Xmx1000m -Xms1000m -jar XSTREAM/xstream.jar ${seqID}.fas -i0.7 -I0 -z -a${seqID} # for aa
+java -Xmx1000m -Xms1000m -jar XSTREAM/xstream.jar ${seqID}.fas -n -i0.8 -I0 -z -a${seqID} # for nt
 
 
 # Tandem Repeat Finder (TRF)
@@ -75,6 +75,17 @@ python parse_TRF.1.py --in_file=${seqID}.TRFout --out_file=TRF.ortho_nt.out/${se
 mreps/mreps -noprint -res 50 -fasta Kgroup/nt/${seqID}.fas > ${seqID}.mreps_out;
 python parse_MREPS.1.py --in_file=${seqID}.mreps_out --out_file=mreps.ortho_nt.out/${seqID}.tr
 
+
+# pytrf
+pytrf findatr --out-file=${seqID}.pytrf.out --max-motif=9999 --min-identity=0 --max-extend=99999 ${Kgroup_h}.fas.gz
+# add title
+vim ortho_pytrf_title.txt
+seqID	start	end	motif_sequence	motif_length	repeat_number	repeat_length	seed_start_position	seed_end_position	seed_repeat_number	seed_length	number_of_matches	number_of_substitutions	number_of_insertions	number_of_deletions	alignment_identity
+for KgroupID in `cat Kgroup_ge500.txt`
+do
+cat ortho_pytrf_title.txt ortho_pytrf_nt.out/${KgroupID}.pytrf.out > ortho_pytrf_nt.out/${KgroupID}.tr
+done
+rm ortho_pytrf_nt.out/*.pytrf.out
 
 
 # calculate consistency at different score cutoffs
@@ -101,10 +112,11 @@ plot_consist <- function(consist_out, col_ci, col_avg, default_score=NA, pch_h=1
 	}
 }
 
-consist_wE_aa_out <- preproc_consist('consist_wE_aa_out.1.tsv')
-consist_woE_aa_out <- preproc_consist('consist_woE_aa_out.1.tsv')
-consist_wE_nt_out <- preproc_consist('consist_wE_nt_out.1.tsv')
-consist_woE_nt_out <- preproc_consist('consist_woE_nt_out.1.tsv')
+
+consist_wE_aa_out <- preproc_consist('consist_wE_aa_04072025_out.1.tsv')
+consist_woE_aa_out <- preproc_consist('consist_woE_aa_04072025_out.1.tsv')
+consist_wE_nt_out <- preproc_consist('consist_wE_nt_04072025_out.1.tsv')
+consist_woE_nt_out <- preproc_consist('consist_woE_nt_04072025_out.1.tsv')
 
 consist_XSTREAM_aa_out <- preproc_consist('consist_XSTREAM_aa_out.1.tsv')
 consist_TRUST_aa_out <- preproc_consist('consist_TRUST_aa_out.1.tsv')
@@ -116,36 +128,156 @@ consist_TRF_nt_out <- preproc_consist('consist_TRF_nt_out.1.tsv')
 consist_XSTREAM_nt_out <- preproc_consist('consist_XSTREAM_nt_out.1.tsv')
 consist_mreps_nt_out <- preproc_consist('consist_mreps_nt_out.1.tsv')
 consist_TREKS_nt_out <- preproc_consist('consist_TREKS_nt_out.1.tsv')
+consist_pytrf_nt_out <- preproc_consist('consist_pytrf_out.1.tsv')
 
+
+
+
+
+# add random prediction dashed line
+x = seq(0,1,0.01)
+y = 1 - 2*x + x^2 + 1 - 2*(1-x) + (1-x)^2
 
 # AA
-pdf(file = "ortho_aa_full.3.pdf", width = 5, height = 5.5)
+pdf(file = "ortho_aa_full_07172025.pdf", width = 5, height = 5.5)
 plot(x*100,y*100, type='l', lty=2, xlim=c(0, 100), ylim=c(0, 100), xaxs = "i", yaxs = "i", xlab = "Percentage of residues predicted as tandem repeat (%)", ylab = "Average consistency (%)", main='KEGG ortholog protein benchmark')
 
-pdf(file = "ortho_aa_zoom.3.pdf", width = 5, height = 5.5)
+pdf(file = "ortho_aa_zoom_07172025.pdf", width = 5, height = 5.5)
 plot(x*100,y*100, type='l', lty=2, xlim=c(0, 10), ylim=c(90, 100), xaxs = "i", yaxs = "i", xlab = "Percentage of residues predicted as tandem repeat (%)", ylab = "Average consistency (%)", main='KEGG ortholog protein benchmark')
 
-plot_consist(consist_wE_aa_out, rgb(0.9,0.1,0.29,0.1), '#e6194B', 10, 2) # DECIPHER_useEmp (Red)
-plot_consist(consist_woE_aa_out, rgb(0.96,0.51,0.19,0.1), '#f58231', 10, 1) # DECIPHER_noEmp (Orange)
 plot_consist(consist_RADAR_aa_out, rgb(0.98,0.75,0.83,0.1), '#fabed4', NA, NA) # RADAR (Pink)
-plot_consist(consist_XSTREAM_aa_out, rgb(0.26,0.39,0.85,0.1), '#4363d8', 0.2, 5) # XSTREAM (Blue)
-plot_consist(consist_HHrepID_aa_out, rgb(0.57,0.12,0.71,0.1), '#911eb4', 0.001, 4) # HHrepID (Purple)
 plot_consist(consist_TRUST_aa_out, rgb(0.26,0.83,0.96,0.1), '#42d4f4', NA, NA) # TRUST (Cyan)
+plot_consist(consist_HHrepID_aa_out, rgb(0.57,0.12,0.71,0.1), '#911eb4', 0.001, 4) # HHrepID (Purple)
+plot_consist(consist_woE_aa_out, rgb(0.96,0.51,0.19,0.1), '#f58231', 8, 1) # DECIPHER_noEmp (Orange)
+plot_consist(consist_wE_aa_out, rgb(0.9,0.1,0.29,0.1), '#e6194B', 8, 2) # DECIPHER_useEmp (Red)
 plot_consist(consist_TREKS_aa_out, rgb(0.24,0.71,0.29,0.1), '#3cb44b', 0.7, 6) # TREKS (Green)
+plot_consist(consist_XSTREAM_aa_out, rgb(0.26,0.39,0.85,0.1), '#4363d8', 0.2, 5) # XSTREAM (Blue)
 dev.off()
 
 
 # NT
-pdf(file = "ortho_nt_full.3.pdf", width = 5, height = 5.5)
+pdf(file = "ortho_nt_full_07172025.pdf", width = 5, height = 5.5)
 plot(x*100,y*100, type='l', lty=2, xlim=c(0, 100), ylim=c(0, 100), xaxs = "i", yaxs = "i", xlab = "Percentage of nucleotides predicted as tandem repeat (%)", ylab = "Average consistency (%)", main='KEGG ortholog nucleotide benchmark')
 
-pdf(file = "ortho_nt_zoom.3.pdf", width = 5, height = 5.5)
+pdf(file = "ortho_nt_zoom_07172025.pdf", width = 5, height = 5.5)
 plot(x*100,y*100, type='l', lty=2, xlim=c(0, 10), ylim=c(90, 100), xaxs = "i", yaxs = "i", xlab = "Percentage of nucleotides predicted as tandem repeat (%)", ylab = "Average consistency (%)", main='KEGG ortholog nucleotide benchmark')
 
-plot_consist(consist_wE_nt_out, rgb(0.9,0.1,0.29,0.1), '#e6194B', 10, 2) # DECIPHER_useEmp (Red)
-plot_consist(consist_woE_nt_out, rgb(0.96,0.51,0.19,0.1), '#f58231', 10, 1) # DECIPHER_noEmp (Orange)
+plot_consist(consist_woE_nt_out, rgb(0.96,0.51,0.19,0.1), '#f58231', 8, 1) # DECIPHER_noEmp (Orange)
+plot_consist(consist_wE_nt_out, rgb(0.9,0.1,0.29,0.1), '#e6194B', 8, 2) # DECIPHER_useEmp (Red)
 plot_consist(consist_TRF_nt_out, rgb(0.5,0.5,0,0.1), '#808000', 50, 7) # TRF (Olive)
 plot_consist(consist_XSTREAM_nt_out, rgb(0.26,0.39,0.85,0.1), '#4363d8', 0.2, 5) # XSTREAM (Blue)
 plot_consist(consist_mreps_nt_out, rgb(0.67,0.43,0.16,0.1), '#9A6324', 0.3, 8) # MREPS (Teal)
 plot_consist(consist_TREKS_nt_out, rgb(0.24,0.71,0.29,0.1), '#3cb44b', 0.7, 6) # TREKS (Green)
+plot_consist(consist_pytrf_nt_out, rgb(0.94,0.20,0.90,0.1), '#f032e6', 70, 9) # pytrf (Magenta)
+dev.off()
+
+
+
+############## Fig. 3E ##############
+## Prepare data for Venn diagrams ##
+# XSTREAM filtered seqIDs
+cd ortho_XSTREAM_aa.out/
+for f in *.tr; do
+    awk -F '\t' 'NR > 1 && $NF <= 0.2 { print $1 }' "$f"
+done | sort -u > Venn_seqIDs/ortho_XSTREAM_aa.seqIDs.txt
+wc -l Venn_seqIDs/ortho_XSTREAM_aa.seqIDs.txt
+41417 Venn_seqIDs/ortho_XSTREAM_aa.seqIDs.txt
+
+cd ortho_XSTREAM_nt.out/
+for f in *.tr; do
+    awk -F '\t' 'NR > 1 && $NF <= 0.2 { print $1 }' "$f"
+done | sort -u > Venn_seqIDs/ortho_XSTREAM_nt.seqIDs.txt
+wc -l Venn_seqIDs/ortho_XSTREAM_nt.seqIDs.txt
+464351 Venn_seqIDs/ortho_XSTREAM_nt.seqIDs.txt
+
+# TREKS filtered seqIDs
+cd ortho_TREKS_aa.out/
+for f in *.tr; do
+    awk -F '\t' 'NR > 1 && $NF >= 0.7 { print $1 }' "$f"
+done | sort -u > Venn_seqIDs/ortho_TREKS_aa.seqIDs.txt
+wc -l Venn_seqIDs/ortho_TREKS_aa.seqIDs.txt
+65044 Venn_seqIDs/ortho_TREKS_aa.seqIDs.txt
+
+cd ortho_TREKS_nt.out/
+for f in *.tr; do
+    awk -F '\t' 'NR > 1 && $NF >= 0.7 { print $1 }' "$f"
+done | sort -u > Venn_seqIDs/ortho_TREKS_nt.seqIDs.txt
+wc -l Venn_seqIDs/ortho_TREKS_nt.seqIDs.txt
+473352 Venn_seqIDs/ortho_TREKS_nt.seqIDs.txt
+
+# DetectRepeats filtered seqIDs
+ortho_DetectRepeats_wE_aa.dir <- 'ortho_DetectRepeats_wE_aa.out/'
+ortho_DetectRepeats_wE_nt.dir <- 'ortho_DetectRepeats_wE_nt.out/'
+ortho_DetectRepeats_woE_aa.dir <- 'ortho_DetectRepeats_woE_aa.out/'
+ortho_DetectRepeats_woE_nt.dir <- 'ortho_DetectRepeats_woE_nt.out/'
+DetectRepeats_wE_aa_seqIDs <- c()
+DetectRepeats_wE_nt_seqIDs <- c()
+DetectRepeats_woE_aa_seqIDs <- c()
+DetectRepeats_woE_nt_seqIDs <- c()
+Kgroups <- gsub('.wEtr', '', list.files(path=ortho_DetectRepeats_wE_aa.dir, pattern="*.wEtr", all.files=TRUE, full.names=FALSE))
+
+total_n_Kgroups <- 0
+for (Kgroup_h in Kgroups)
+{
+	total_n_Kgroups <- total_n_Kgroups + 1
+	print(total_n_Kgroups)
+	# wE_aa
+	DR_result_h <- readRDS(paste0(ortho_DetectRepeats_wE_aa.dir, Kgroup_h, '.wEtr'))
+	DR_result_h <- DR_result_h[DR_result_h$Score>=8,'Index']
+	if (length(DR_result_h) > 0) {
+		DetectRepeats_wE_aa_seqIDs <- c(DetectRepeats_wE_aa_seqIDs, paste0(Kgroup_h, '_', DR_result_h))
+	}
+	# wE_nt
+	DR_result_h <- readRDS(paste0(ortho_DetectRepeats_wE_nt.dir, Kgroup_h, '.wEtr'))
+	DR_result_h <- DR_result_h[DR_result_h$Score>=8,'Index']
+	if (length(DR_result_h) > 0) {
+		DetectRepeats_wE_nt_seqIDs <- c(DetectRepeats_wE_nt_seqIDs, paste0(Kgroup_h, '_', DR_result_h))
+	}
+	# woE_aa
+	DR_result_h <- readRDS(paste0(ortho_DetectRepeats_woE_aa.dir, Kgroup_h, '.woEtr'))
+	DR_result_h <- DR_result_h[DR_result_h$Score>=8,'Index']
+	if (length(DR_result_h) > 0) {
+		DetectRepeats_woE_aa_seqIDs <- c(DetectRepeats_woE_aa_seqIDs, paste0(Kgroup_h, '_', DR_result_h))
+	}
+	# woE_nt
+	DR_result_h <- readRDS(paste0(ortho_DetectRepeats_woE_nt.dir, Kgroup_h, '.woEtr'))
+	DR_result_h <- DR_result_h[DR_result_h$Score>=8,'Index']
+	if (length(DR_result_h) > 0) {
+		DetectRepeats_woE_nt_seqIDs <- c(DetectRepeats_woE_nt_seqIDs, paste0(Kgroup_h, '_', DR_result_h))
+	}
+}
+
+saveRDS(DetectRepeats_wE_aa_seqIDs, 'Venn_seqIDs/ortho_DetectRepeats_wE_aa.seqIDs.rds')
+saveRDS(DetectRepeats_wE_nt_seqIDs, 'Venn_seqIDs/ortho_DetectRepeats_wE_nt.seqIDs.rds')
+saveRDS(DetectRepeats_woE_aa_seqIDs, 'Venn_seqIDs/ortho_DetectRepeats_woE_aa.seqIDs.rds')
+saveRDS(DetectRepeats_woE_nt_seqIDs, 'Venn_seqIDs/ortho_DetectRepeats_woE_nt.seqIDs.rds')
+
+
+
+# Import required package
+install.packages("ggvenn")             
+library("ggvenn")
+
+# Create Data
+venn_XSTREAM <- list(protein = readLines('Venn_seqIDs/ortho_XSTREAM_aa.seqIDs.txt'),
+             nucleotide = readLines('Venn_seqIDs/ortho_XSTREAM_nt.seqIDs.txt'))
+venn_TREKS <- list(protein = readLines('Venn_seqIDs/ortho_TREKS_aa.seqIDs.txt'),
+             nucleotide = readLines('Venn_seqIDs/ortho_TREKS_nt.seqIDs.txt'))
+venn_DetectRepeats_wE <- list(protein = readRDS('Venn_seqIDs/ortho_DetectRepeats_wE_aa.seqIDs.rds'),
+             nucleotide = readRDS('Venn_seqIDs/ortho_DetectRepeats_wE_nt.seqIDs.rds'))
+venn_DetectRepeats_woE <- list(protein = readRDS('Venn_seqIDs/ortho_DetectRepeats_woE_aa.seqIDs.rds'),
+             nucleotide = readRDS('Venn_seqIDs/ortho_DetectRepeats_woE_nt.seqIDs.rds'))
+
+# Create venn diagram Pairwise
+library(ggpubr)
+
+# Create plots
+p1 <- ggvenn(venn_DetectRepeats_wE, fill_color = c("yellow", "blue")) + ggtitle("DetectRepeats (w/ empirical)") + theme(plot.title = element_text(face = "bold"))
+p2 <- ggvenn(venn_DetectRepeats_woE, fill_color = c("yellow", "blue")) + ggtitle("DetectRepeats (w/o empirical)") + theme(plot.title = element_text(face = "bold"))
+p3 <- ggvenn(venn_TREKS, fill_color = c("yellow", "blue")) + ggtitle("T-REKS") + theme(plot.title = element_text(face = "bold"))
+p4 <- ggvenn(venn_XSTREAM, fill_color = c("yellow", "blue")) + ggtitle("XSTREAM") + theme(plot.title = element_text(face = "bold"))
+
+# Arrange plots
+pdf(file = "ortho_venn_07152025.pdf", width = 14, height = 3)
+ggarrange(p1, p2, p3, p4, ncol = 4, nrow = 1)
 dev.off()

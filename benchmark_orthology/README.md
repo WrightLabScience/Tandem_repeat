@@ -47,9 +47,9 @@ Notes:
 Scripts:
  - DECIPHER_DetectRepeats.20.r
  - parse_HHrepID.2.r
- - parse_RADAR.1.py
- - parse_trust.4.py
- - parse_treks.3.py
+ - parse_RADAR.2.r
+ - parse_trust.6.r
+ - parse_treks.4.r
  - parse_TRF.1.py
  - parse_MREPS.1.py
 
@@ -63,3 +63,11 @@ Notes:
 
 Scripts:
  - consist_all.3.r
+
+
+Venn Diagrams
+---
+Compute consistency of tandem repeat identification across DNA and AA sequences
+
+Notes: 
+ - Analysis_orthology_benchmark.txt

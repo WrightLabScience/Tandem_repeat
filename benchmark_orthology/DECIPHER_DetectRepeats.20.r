@@ -10,6 +10,13 @@ out_wE <- ARGS[2]
 out_woE <- ARGS[3]
 ntaa <- ARGS[4]
 
+# re-install DECIPHER
+# LIB <- "./libraries/"
+# dir.create(LIB)
+# Sys.setenv(TMPDIR=getwd())
+# install.packages(DECIPHER_pkg, lib=LIB)
+# .libPaths(c(LIB, .libPaths()))
+
 # load libraries
 suppressMessages(library(DECIPHER))
 packageVersion("DECIPHER")
