@@ -2,7 +2,7 @@ Analysis_PDB_source.txt
 
 Shu-Ting Cho <shutingcho@pitt.edu>
 
-# Get summary of source PDB used in training and test data
+# Get summary of source of PDB used in test data set
 # eukaryote, prokaryote, other
 
 # load library

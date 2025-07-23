@@ -53,3 +53,10 @@ Scripts:
  - parse_trust.5.r
  - parse_RADAR.2.r
  - parse_treks.4.r
+
+
+Get summary of source of PDB used in test data set
+---
+
+Notes:
+ - Analysis_PDB_source.txt
