@@ -32,7 +32,7 @@ Step 2: Run DetectRepeats
 Run DetectRepeats on 4618 genomes' proteome
 
 Scripts:
- - DECIPHER_DetectRepeats.18.r
+ - DECIPHER_DetectRepeats_batch.1.r
 
 
 Step 3: Compute phylogenetic signal Blomberg's K
@@ -40,7 +40,7 @@ Step 3: Compute phylogenetic signal Blomberg's K
 Compute Blomberg's K for proteome TR fraction using phytools::phylosig()
 
 File paths:
- - all4618_ML_K_07012024.rds
+ - all4618_ML_K_05072025.rds
 
 
 Step 4: Plot species tree with TR fraction

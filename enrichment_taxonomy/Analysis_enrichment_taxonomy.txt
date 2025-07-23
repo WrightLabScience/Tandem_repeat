@@ -193,7 +193,7 @@ WriteDendrogram(all4618_SSUs_MLtree, file = 'species_4618.tree')
 
 
 # Step 2.1: Run DetectRepeats
-Rscript DECIPHER_DetectRepeats.18.r ${seqID}
+Rscript DECIPHER_DetectRepeats_batch.1.r --in_file=${genomeID_h}.faa.gz --batch_i=${batch_i}
 
 # Step 2.2: count tandem repeat. Count at most one repeat per gene if isoforms exist.
 cd count_TR_isoform/logs
@@ -215,13 +215,14 @@ saveRDS(count_TR_merge, 'count_TR_merge.rds')
 library(phytools)
 library(dendextend)
 tree <- read.tree(file = 'species_4618.tree')
+count_TR_merge <- readRDS('count_TR_merge.rds')
 tree$tip.label <- gsub('\"','',tree$tip.label)
 trait <- count_TR_merge[tree$tip.label, 'frac_uniq_TR']
 names(trait) <- tree$tip.label
-all4618_ML_K_07012024 <- phylosig(tree, trait, method="K", test=TRUE, nsim=1000000)
-saveRDS(all4618_ML_K_07012024, '~/Documents/project/TR02/TR02.96/all4618_ML_K_07012024.rds')
-# Phylogenetic signal K : 0.000613398 
-# P-value (based on 1000000 randomizations) : 1e-06
+all4618_ML_K_05072025 <- phylosig(tree, trait, method="K", test=TRUE, nsim=1000000)
+saveRDS(all4618_ML_K_05072025, 'all4618_ML_K_05072025.rds')
+# Phylogenetic signal K : 0.000591326 
+# P-value (based on 1000000 randomizations) : 1e-06 
 
 
 
@@ -310,11 +311,17 @@ all4618_MLtree02 %>% plot(main = "Adjust the branch if ALL (default) of its labe
 
 
 # sort the tree
+# all4618_MLtree03 <- readRDS('all4618_MLtree03.rds')
 all4618_MLtree03 <- all4618_MLtree02 %>% set("labels_cex", 0.1) %>% sort(type = "nodes")
 
 vals <- count_TR_merge[labels(all4618_MLtree03),'frac_uniq_TR']
+summary(vals)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+0.00000 0.01367 0.01718 0.02668 0.02412 0.40270
 
 # tree with bar chart colored by clade
+pdf(file = "~/Documents/project/TR02/TR02.105/tree_w_bar_4618.1.pdf", width = 17.53, height = 8.18)
+
 par(mar=c(10,1,1,0))
 plot(all4618_MLtree03, leaflab = "none", main = "all4618_MLtree03", axes=F)
 lines(c(-50,0), c(10.5,10.5),xpd=TRUE)
@@ -353,3 +360,25 @@ text('20', x = -85, y = -2.2, cex=1, pos=2, xpd=TRUE, srt=-90)
 text('30', x = -85, y = -3.2, cex=1, pos=2, xpd=TRUE, srt=-90)
 text('40', x = -85, y = -4.2, cex=1, pos=2, xpd=TRUE, srt=-90)
 text('Fraction of proteins (%)', x = -170, y = -1.8, cex=1, pos=1, xpd=TRUE, srt=-90)
+dev.off()
+
+# Calculate TR mean values for each phylum
+for (color_h in unique(get_leaves_branches_col(all4618_MLtree03))) {
+	cat(color_h, mean(vals[get_leaves_branches_col(all4618_MLtree03)==color_h]), '\n', sep='\t')
+}
+#black	0.03181696	# others
+#f032e6	0.03269794	# Ascomycota
+#f58231	0.07070541	# Phragmoplastophyta
+#4363d8	0.08950746	# Arthropoda
+#000075	0.1230827	# Vertebrata
+#a9a9a9	0.01753283	# Thermoproteota
+#3cb44b	0.02735961	# Halobacteriota
+#ffd8b1	0.02334767	# Spirochaetota
+#fabed4	0.02507416	# Desulfobacterota
+#9A6324	0.01670801	# Actinobacteriota
+#469990	0.02344535	# Bacteroidota
+#e6194B	0.01962394	# Firmicutes_A
+#808000	0.01674802	# Firmicutes
+#800000	0.01529398	# Proteobacteria
+#aaffc3	0.03734008	# Cyanobacteria
+#911eb4	0.01428853	# Campylobacterota
