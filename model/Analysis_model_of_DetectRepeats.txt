@@ -25,7 +25,7 @@ library(DECIPHER)
 ############################### Fig1B ###############################
 # show distribution for how often finding the closest unit to be the most similar unit
 # convert probabilities into log-odds
-answer <- read.table('benchmark_structural/convert_seq_id.2.tsv', header = TRUE, sep= "\t")
+answer <- read.table('benchmark_structural/convert_seq_id.3.tsv', header = TRUE, sep= "\t")
 PDBs <- unique(answer$ID1)
 v_n_unit_away <- c()
 background <- integer(100)
@@ -55,23 +55,25 @@ for (i in seq_along(PDBs)) {
 }
 
 sum(table(v_n_unit_away))
-[1] 5301
+[1] 5293
 sum(background[1:23])
-[1] 5301
+[1] 5293
 
 table(copy_numbers)
   2   3   4   5   6   7   8   9  10  11  12  13  14  16  17  18  20  21  22  24 
-649 122 114  87 117  86  55  18  14  14  11   5   6   3   3   2   1   2   2   1
+647 122 113  87 117  86  55  18  14  14  11   5   6   3   3   2   1   2   2   1 
 barplot(height=table(copy_numbers), main='copy_numbers')
 
 round(background[1:23])
-   1    2    3    4    5    6    7    8    9   10   11   12   13   14   15   16   17   18   19   20   21   22   23 
-2624  978  629  403  252  145   85   54   38   27   19   13   10    7    6    4    3    2    2    1    0    0    0
+   1    2    3    4    5    6    7    8    9   10   11   12   13   14   15   16 
+2618  976  628  403  252  145   85   54   38   27   19   13   10    7    6    4 
+  17   18   19   20   21   22   23 
+   3    2    2    1    0    0    0 
 barplot(height=background[1:23], main='background')
 
 t_unit_away <- table(v_n_unit_away)
    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15   16   17   18 
-2885 1149  511  358  143   99   53   35   21   17   10    7    3    4    2    1    2    1 
+2877 1149  511  358  143   99   53   35   21   17   10    7    3    4    2    1    2    1 
 barplot(height=t_unit_away, main='most_similar_unit')
 
 # bar plot
@@ -79,7 +81,7 @@ subset <- 1:9 # NOTE: repeats start at 2 copies
 unit_x <- c(t_unit_away[subset], sum(t_unit_away[-subset]))
 unit_y <- c(background[subset], sum(background[-subset]))
 bar_value <- log(unit_x/unit_y)
-pdf(file = "model/most_sim_unit_logodds.pdf", width = 4, height = 4.5)
+pdf(file = "~/Documents/project/TR02/TR02.103/most_sim_unit_logodds_07242025.pdf", width = 4, height = 4.5)
 barplot(height = bar_value, names.arg=c(names(bar_value)[-10],'≥10'), ylim = c(-0.8,0.2), main='Separation from\nmost similar unit', xlab='Number of units apart', ylab='Empirical log-odds')
 #box()
 dev.off()
@@ -143,7 +145,8 @@ res[w] <- lapply(res[w], c, NA_character_)
 res <- do.call(cbind, res)
 res <- t(res)
 res <- as.data.frame(res)
-res <- res[res[, "V11"] >= 0.4 & res[, "V11"] < 0.6,]
+res <- res[as.numeric(res$V11)!=0,] # 4436
+res <- res[res[, "V11"] >= 0.4 & res[, "V11"] < 0.6,] # 2629
 W[!(substring(ls, 1, nchar(ls) - 4L) %in% rownames(res))] <- FALSE
 #writeLines(substring(ls, 1, nchar(ls) - 4L)[W], "benchmark_structural/Update_CE-Symmv2.3.0_benchmark/PDB_TrainingSet_v4.txt")
 

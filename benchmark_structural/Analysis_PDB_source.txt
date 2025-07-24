@@ -107,7 +107,7 @@ for (row_i in rownames(pdb_info_df2)) {
 
 table(pdb_info_df2$kingdom, useNA ="always")
            chimeric           eukaryote          prokaryote 
-                  2                 515                 702 
+                  2                 512                 702 
 synthetic construct             unknown               virus 
                  56                   5                  32 
                <NA> 
@@ -115,12 +115,12 @@ synthetic construct             unknown               virus
 
 round(table(pdb_info_df2$kingdom, useNA ="always")/nrow(pdb_info_df2), digits=2)
            chimeric           eukaryote          prokaryote 
-             0.0015              0.3925              0.5351 
+               0.00                0.39                0.54 
 synthetic construct             unknown               virus 
-             0.0427              0.0038              0.0244 
+               0.04                0.00                0.02 
                <NA> 
-             0.0000 
+               0.00 
 
 summary(pdb_info_df2$TR_fracs)
    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
- 0.1491  0.8268  0.8937  0.8740  0.9420  3.6786 
+ 0.1491  0.8266  0.8934  0.8701  0.9418  1.0000 

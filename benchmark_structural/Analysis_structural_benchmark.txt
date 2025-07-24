@@ -74,9 +74,30 @@ for (i in seq_along(TPs_v5)) {
 	}
 	cat(i,id1,'\n')
 }
-write.table(df_convert_seq_id, './convert_seq_id.2.tsv', quote=FALSE, sep='\t', row.names = FALSE)
 
+# Tandem repeat coverage, from CE-Symm
+v_cov_perc <- c()
+for (seqID_h in unique(answer$ID1)) {
+	cat(seqID_h,'\n')
+	df_h <- answer[answer$ID1==seqID_h,]
+	seq_len_h <- df_h[1,'seq_len']
+	v_cov_perc <- c(v_cov_perc, sum(df_h$end_label - df_h$begin_label) / df_h[1,'seq_len'])
+}
+names(v_cov_perc) <- unique(answer$ID1)
+summary(v_cov_perc)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.1304  0.7988  0.8707  0.8482  0.9205  3.6429 
 
+which(v_cov_perc>1)
+2CE2X 2ICYB 2Q3PA 
+   26   584  1035 
+# these are matching with same PDB but different model
+# remove these three from the test set
+df_convert_seq_id <- df_convert_seq_id[!is.element(df_convert_seq_id$ID1,names(which(v_cov_perc>1))),]
+length(unique(df_convert_seq_id$ID1))
+[1] 1309
+
+write.table(df_convert_seq_id, '~/Documents/project/TR02/TR02.102/convert_seq_id.3.tsv', quote=FALSE, sep='\t', row.names = FALSE)
 
 
 #### Run tandem repeat finding tools
@@ -96,10 +117,11 @@ write.table(DetectRepeats_wE_FP_04012025, '/Users/shc167/Documents/project/TR02/
 DetectRepeats_woE_FP_04012025 <- DetectRepeats(FPs_v5_rename, minScore=0, useEmpirical=FALSE)
 DetectRepeats_woE_FP_04012025$seqID <- names(FPs_v5_rename)[DetectRepeats_woE_FP_04012025$Index]
 write.table(DetectRepeats_woE_FP_04012025, '/Users/shc167/Documents/project/TR02/TR02.102/DetectRepeats_woE_FP_04012025.tsv', quote=FALSE, sep='\t', row.names = FALSE)
-# evaluate accuracy
-Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.2.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/DetectRepeats_wE_TP_04012025.tsv --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/DetectRepeats_wE_FP_04012025.tsv --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_DetectRepeats_wE_04012025.rds --num_cutoffs=1000 --default_score=8 --colname_seqID='seqID' --colname_start='Begin' --colname_end='End' --colname_score='Score'
 
-Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.2.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/DetectRepeats_woE_TP_04012025.tsv --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/DetectRepeats_woE_FP_04012025.tsv --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_DetectRepeats_woE_04012025.rds --num_cutoffs=1000 --default_score=8 --colname_seqID='seqID' --colname_start='Begin' --colname_end='End' --colname_score='Score'
+# evaluate accuracy
+Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.3.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/DetectRepeats_wE_TP_04012025.tsv --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/DetectRepeats_wE_FP_04012025.tsv --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_DetectRepeats_wE_07242025.rds --num_cutoffs=1000 --default_score=8 --colname_seqID='seqID' --colname_start='Begin' --colname_end='End' --colname_score='Score'
+
+Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.3.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/DetectRepeats_woE_TP_04012025.tsv --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/DetectRepeats_woE_FP_04012025.tsv --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_DetectRepeats_woE_07242025.rds --num_cutoffs=1000 --default_score=8 --colname_seqID='seqID' --colname_start='Begin' --colname_end='End' --colname_score='Score'
 
 
 ############################### HHrepID ###############################
@@ -151,7 +173,7 @@ Rscript ~/project/TR02/TR02.95/parse_HHrepID.2.r --in_dir=/net/dali/home/mscbio/
 # n_seq_in = 816, n_seq_out = 816
 rsync -avz --progress shc167@cluster.csb.pitt.edu:/net/dali/home/mscbio/shc167/project/TR02/TR02.102/\*P_out_\*.tsv /Users/shc167/Documents/project/TR02/TR02.102/
 # Evaluate
-Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.2.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/TP_out_HHrepID.tsv --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/FP_out_HHrepID.tsv --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_HHrepID_04012025.rds --num_cutoffs=1000 --default_score=0.001 --colname_seqID='seqID' --colname_start='start' --colname_end='end' --colname_score='P.value' --le_score
+Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.3.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/TP_out_HHrepID.tsv --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/FP_out_HHrepID.tsv --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_HHrepID_07242025.rds --num_cutoffs=1000 --default_score=0.001 --colname_seqID='seqID' --colname_start='start' --colname_end='end' --colname_score='P.value' --le_score
 
 
 
@@ -205,7 +227,7 @@ python3 /net/dali/home/mscbio/shc167/project/TR02/TR02.95/parse_RADAR.1.py --in_
 # n_seq_in = 1312
 rsync -avz --progress shc167@cluster.csb.pitt.edu:/net/dali/home/mscbio/shc167/project/TR02/TR02.102/\*P_out_\*.tsv /Users/shc167/Documents/project/TR02/TR02.102/
 # Evaluate
-Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.2.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/TP_out_RADAR.tsv --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/FP_out_RADAR.tsv --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_RADAR_04012025.rds --num_cutoffs=1000 --colname_seqID='seqID' --colname_start='start' --colname_end='end' --colname_score='Total_Score'
+Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.3.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/TP_out_RADAR.tsv --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/FP_out_RADAR.tsv --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_RADAR_07242025.rds --num_cutoffs=1000 --colname_seqID='seqID' --colname_start='start' --colname_end='end' --colname_score='Total_Score'
 
 
 
@@ -225,7 +247,7 @@ Rscript /Users/shc167/Documents/scripts_TR/parse_trust.5.r --in_file=/Users/shc1
 n_seq_in = 1312, out_n_repeats = 216
 
 # Evaluate
-Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.2.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_TRUST/TP_out_TRUST.tsv --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_TRUST/FP_out_TRUST.tsv --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_TRUST_07112025.rds --num_cutoffs=1000 --colname_seqID='seqID' --colname_start='start' --colname_end='end' --colname_score='score_sum'
+Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.3.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_TRUST/TP_out_TRUST.tsv --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_TRUST/FP_out_TRUST.tsv --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_TRUST_07242025.rds --num_cutoffs=1000 --colname_seqID='seqID' --colname_start='start' --colname_end='end' --colname_score='score_sum'
 
 
 ############################### T-REKS ###############################
@@ -238,7 +260,7 @@ Rscript ~/Documents/scripts_TR/parse_treks.4.r --in_file=/Users/shc167/Documents
 n_seq_in = 182, out_n_repeats = 215
 n_seq_in = 171, out_n_repeats = 235
 # Evaluate
-Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.2.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/TP_out_T-REKS.tsv --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/FP_out_T-REKS.tsv --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_T-REKS_07092025.rds --num_cutoffs=1000 --colname_seqID='seqID' --colname_start='start' --colname_end='end' --colname_score='Psim' --default_score=0.7
+Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.3.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/TP_out_T-REKS.tsv --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/FP_out_T-REKS.tsv --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_T-REKS_07242025.rds --num_cutoffs=1000 --colname_seqID='seqID' --colname_start='start' --colname_end='end' --colname_score='Psim' --default_score=0.7
 
 
 ############################### XSTREAM ###############################
@@ -247,19 +269,19 @@ cd /Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_XSTREAM
 java -Xmx1000m -Xms1000m -jar /Users/shc167/BioInfoApp/xstream/xstream.jar /Users/shc167/Documents/project/TR02/TR02.102/TPs_v5_rename.faa -i0.7 -I0 -z -aTPs_v5_rename
 java -Xmx1000m -Xms1000m -jar /Users/shc167/BioInfoApp/xstream/xstream.jar /Users/shc167/Documents/project/TR02/TR02.102/FPs_v5_rename.faa -i0.7 -I0 -z -aFPs_v5_rename
 # Evaluate
-Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.2.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_XSTREAM/XSTREAM_TPs_v5_rename_i0.7_g3_m5_e2.0_chart.xls --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_XSTREAM/XSTREAM_FPs_v5_rename_i0.7_g3_m5_e2.0_chart.xls --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_XSTREAM_04012025.rds --num_cutoffs=1000 --colname_seqID='identifier' --colname_start='start' --colname_end='end' --colname_score='consensus.error' --default_score=0.2 --le_score
+Rscript /Users/shc167/Documents/scripts_TR/eval_ROC.3.r --path_answer=/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.3.tsv --path_TP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_XSTREAM/XSTREAM_TPs_v5_rename_i0.7_g3_m5_e2.0_chart.xls --path_FP=/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_XSTREAM/XSTREAM_FPs_v5_rename_i0.7_g3_m5_e2.0_chart.xls --path_out=/Users/shc167/Documents/project/TR02/TR02.102/ROC_XSTREAM_07242025.rds --num_cutoffs=1000 --colname_seqID='identifier' --colname_start='start' --colname_end='end' --colname_score='consensus.error' --default_score=0.2 --le_score
 
 
 
 
 ####### plot ROC. For Fig1F #######
-ROC_DetectRepeats_wE <- readRDS('/Users/shc167/Documents/project/TR02/TR02.102/ROC_DetectRepeats_wE_04012025.rds')
-ROC_DetectRepeats_woE <- readRDS('/Users/shc167/Documents/project/TR02/TR02.102/ROC_DetectRepeats_woE_04012025.rds')
-ROC_HHrepID <- readRDS('/Users/shc167/Documents/project/TR02/TR02.102/ROC_HHrepID_04012025.rds')
-ROC_RADAR <- readRDS('/Users/shc167/Documents/project/TR02/TR02.102/ROC_RADAR_04012025.rds')
-ROC_TRUST_07112025 <- readRDS('/Users/shc167/Documents/project/TR02/TR02.102/ROC_TRUST_07112025.rds')
-ROC_TREKS_07092025 <- readRDS('/Users/shc167/Documents/project/TR02/TR02.102/ROC_T-REKS_07092025.rds')
-ROC_XSTREAM <- readRDS('/Users/shc167/Documents/project/TR02/TR02.102/ROC_XSTREAM_04012025.rds')
+ROC_DetectRepeats_wE <- readRDS('/Users/shc167/Documents/project/TR02/TR02.102/ROC_DetectRepeats_wE_07242025.rds')
+ROC_DetectRepeats_woE <- readRDS('/Users/shc167/Documents/project/TR02/TR02.102/ROC_DetectRepeats_woE_07242025.rds')
+ROC_HHrepID <- readRDS('/Users/shc167/Documents/project/TR02/TR02.102/ROC_HHrepID_07242025.rds')
+ROC_RADAR <- readRDS('/Users/shc167/Documents/project/TR02/TR02.102/ROC_RADAR_07242025.rds')
+ROC_TRUST <- readRDS('/Users/shc167/Documents/project/TR02/TR02.102/ROC_TRUST_07242025.rds')
+ROC_TREKS <- readRDS('/Users/shc167/Documents/project/TR02/TR02.102/ROC_T-REKS_07242025.rds')
+ROC_XSTREAM <- readRDS('/Users/shc167/Documents/project/TR02/TR02.102/ROC_XSTREAM_07242025.rds')
 
 decipher_we_col = "#e6194B"
 decipher_woe_col = "#f58231"
@@ -270,21 +292,21 @@ treks_col = "#3cb44b"
 xstream_col = "#4363d8"
 
 # plot ROC
-pdf(file = "~/Documents/project/TR02/TR02.102/ROC_full_07112025.pdf", width = 5, height = 5.5)
+pdf(file = "~/Documents/project/TR02/TR02.102/ROC_full_07242025.pdf", width = 5, height = 5.5)
 plot(c(-1,2), c(-1,2), xlab = "False Positive Rate", ylab = "True Positive Rate", xlim=c(0, 1), ylim=c(0, 1), xaxs = "i", yaxs = "i", lwd = 1, col = "black", type = "l", lty = 'dashed')
 # Add lines
 lines(ROC_DetectRepeats_wE$FPR, ROC_DetectRepeats_wE$TPR, col = decipher_we_col, type = "l", lwd = 1, lty = 1)
 lines(ROC_DetectRepeats_woE$FPR, ROC_DetectRepeats_woE$TPR, col = decipher_woe_col, type = "l", lwd = 1, lty = 1)
 lines(ROC_HHrepID$FPR, ROC_HHrepID$TPR, col = hhrepid_col, type = "l", lwd = 1, lty = 1)
 lines(ROC_RADAR$FPR, ROC_RADAR$TPR, col = radar_col, type = "l", lwd = 1, lty = 1)
-lines(ROC_TRUST_07112025$FPR, ROC_TRUST_07112025$TPR, col = trust_col, type = "l", lwd = 1, lty = 1)
-lines(ROC_TREKS_07092025$FPR, ROC_TREKS_07092025$TPR, col = treks_col, type = "l", lwd = 1, lty = 1)
+lines(ROC_TRUST$FPR, ROC_TRUST$TPR, col = trust_col, type = "l", lwd = 1, lty = 1)
+lines(ROC_TREKS$FPR, ROC_TREKS$TPR, col = treks_col, type = "l", lwd = 1, lty = 1)
 lines(ROC_XSTREAM$FPR, ROC_XSTREAM$TPR, col = xstream_col, type = "l", lwd = 1, lty = 1)
 #legend("bottomright", legend=c("DetectRepeats_wE", "DetectRepeats_woE","HHrepID","RADAR",  "TRUST", "T-REKS", "XSTREAM"), col=c(decipher_we_col, decipher_woe_col, hhrepid_col, radar_col, trust_col, treks_col,xstream_col), cex=1, lwd = 1, pch = c(2,1,4,NA,NA,6,5),lty= 1)
 dev.off()
 
 ### Zoom in ROC curves ###
-pdf(file = "~/Documents/project/TR02/TR02.102/ROC_zoom_07112025.pdf", width = 5, height = 5.5)
+pdf(file = "~/Documents/project/TR02/TR02.102/ROC_zoom_07242025.pdf", width = 5, height = 5.5)
 plot(c(-1,2), c(-1,2), xlab = "False Positive Rate", ylab = "True Positive Rate", xlim=c(0, 0.01), ylim=c(0, 0.25), lwd = 1, col = "black", type = "l", yaxs = "i",lty = 'dashed')
 # Add lines & default point
 lines(ROC_DetectRepeats_wE$FPR, ROC_DetectRepeats_wE$TPR, col = decipher_we_col, type = "l", lwd = 1, lty = 1)
@@ -294,9 +316,9 @@ points(y=ROC_DetectRepeats_woE[ROC_DetectRepeats_woE$cutoff==8,'TPR'], x=ROC_Det
 lines(ROC_HHrepID$FPR, ROC_HHrepID$TPR, col = hhrepid_col, type = "l", lwd = 1, lty = 1)
 points(y=ROC_HHrepID[ROC_HHrepID$cutoff==0.001,'TPR'], x=ROC_HHrepID[ROC_HHrepID$cutoff==0.001,'FPR'], col = hhrepid_col, cex=1, lwd = 1, pch = 4)
 lines(ROC_RADAR$FPR, ROC_RADAR$TPR, col = radar_col, type = "l", lwd = 1, lty = 1)
-lines(ROC_TRUST_07112025$FPR, ROC_TRUST_07112025$TPR, col = trust_col, type = "l", lwd = 1, lty = 1)
-lines(ROC_TREKS_07092025$FPR, ROC_TREKS_07092025$TPR, col = treks_col, type = "l", lwd = 1, lty = 1)
-points(y=ROC_TREKS_07092025[ROC_TREKS_07092025$cutoff==0.7,'TPR'], x=ROC_TREKS_07092025[ROC_TREKS_07092025$cutoff==0.7,'FPR'], col = treks_col, cex=1, lwd = 1, pch = 6)
+lines(ROC_TRUST$FPR, ROC_TRUST$TPR, col = trust_col, type = "l", lwd = 1, lty = 1)
+lines(ROC_TREKS$FPR, ROC_TREKS$TPR, col = treks_col, type = "l", lwd = 1, lty = 1)
+points(y=ROC_TREKS[ROC_TREKS$cutoff==0.7,'TPR'], x=ROC_TREKS[ROC_TREKS$cutoff==0.7,'FPR'], col = treks_col, cex=1, lwd = 1, pch = 6)
 lines(ROC_XSTREAM$FPR, ROC_XSTREAM$TPR, col = xstream_col, type = "l", lwd = 1, lty = 1)
 points(y=ROC_XSTREAM[ROC_XSTREAM$cutoff==0.2,'TPR'], x=ROC_XSTREAM[ROC_XSTREAM$cutoff==0.2,'FPR'], col = xstream_col, cex=1, lwd = 1, pch = 5)
 abline(v=0.001, col="gray")
@@ -305,52 +327,9 @@ dev.off()
 
 
 ############################### Probability of detection ###############################
-### Probability of detection for each tool at diff PID range (with 0.1% FPR)
-library(DECIPHER)
-
-# read answer
-answer <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.2.tsv', header = TRUE, sep= "\t")
-
-# seq_len
-seq_len <- answer[,c('ID1', 'seq_len')]
-seq_len <- seq_len[!duplicated(seq_len),]
-seq_len <- setNames(seq_len$seq_len, seq_len$ID1)
-
-# AvgPIDs
-AvgPIDs <- c()
-for (seqID in names(seq_len)) {
-	alignment_h <- readAAStringSet(paste('/Users/shc167/Documents/project/TR02/TR02.102/Update_CE-Symmv2.3.0_benchmark/repeat_alignments_v2/', seqID, '.fas', sep=''))
-	d <- DistanceMatrix(alignment_h, includeTerminalGaps = TRUE, method = 'longest', verbose=FALSE)
-	PIDs <- 1- d[upper.tri(d, diag = FALSE)]
-	AvgPIDs <- c(AvgPIDs, mean(PIDs))
-} 
-names(AvgPIDs) <- names(seq_len)
-saveRDS(AvgPIDs, file='/Users/shc167/Documents/project/TR02/TR02.102/AvgPIDs.rds')
-AvgPIDs_quantile <- quantile(AvgPIDs, seq(0, 1, length.out=11))
-#        0%       10%       20%       30%       40%       50% 
-# 0.0000000 0.0750000 0.0925775 0.1073938 0.1218240 0.1407998 
-#       60%       70%       80%       90%      100% 
-# 0.1583333 0.1886767 0.2360607 0.3343537 1.0000000 
-
-# seperate ranges
-AvgPIDs_h <- AvgPIDs
-bins_aa <- list()
-for (bin_upperbound in AvgPIDs_quantile[c(2:11)]) {
-	print(bin_upperbound)
-	bins_aa[[as.character(bin_upperbound)]] <- AvgPIDs_h[AvgPIDs_h<=bin_upperbound]
-	print(length(bins_aa[[as.character(bin_upperbound)]]))
-	AvgPIDs_h <- AvgPIDs_h[AvgPIDs_h>bin_upperbound]
-}
-saveRDS(bins_aa, file='/Users/shc167/Documents/project/TR02/TR02.98/bins_aa.rds')
-lengths(bins_aa)
-#              0.075 0.0925774990875354  0.107393763242763  0.121823966065748  0.140799766965435 
-#                132                131                131                131                131 
-#  0.158333333333333  0.188676669989066   0.23606073263968  0.334353741496599                  1 
-#                132                130                131                131                132 
-
 # list of answer
 list_answer <- list()
-for (seqID_h in names(seq_len)) {
+for (seqID_h in unique(answer$ID1)) {
 	list_answer[[seqID_h]] <- numeric(seq_len[seqID_h])
 	for (row_i in rownames(answer[answer$ID1==seqID_h,])) {
 		list_answer[[seqID_h]][answer[row_i,'begin_label']:answer[row_i,'end_label']] <- 1
@@ -373,53 +352,88 @@ get_prob_mt <- function(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname,
 	return(prob_mt)
 }
 
+# seq_len
+seq_len <- answer[,c('ID1', 'seq_len')]
+seq_len <- seq_len[!duplicated(seq_len),]
+seq_len <- setNames(seq_len$seq_len, seq_len$ID1)
 
+# Fig. 2G upper: probability of detection for different PID
+### Probability of detection for each tool at diff PID range (with 0.1% FPR)
 
-#### Get score cutoff w/ 0.1% FPR for each tool ####
-# Tool	cutoff	TPR	FPR
-# wE	7.542227	0.1344681538	0.0014206144
-# woE	9.658749	0.0967845871	0.0014206144
-# HHrepID	8.7e-12	0.11533140	0.0015087180
-# RADAR	586.0417	0.0080698600	0.001448556
-# TRUST	789.2946	0.04491463	0.0012416557
-# T-REKS	0.7916667	0.021835246	1.166470e-03
-# XSTREAM	0.07	0.013158497	0.0010782854
+# AvgPIDs
+AvgPIDs <- c()
+for (seqID in unique(answer$ID1)) {
+	alignment_h <- readAAStringSet(paste('/Users/shc167/Documents/project/TR02/TR02.102/Update_CE-Symmv2.3.0_benchmark/repeat_alignments_v2/', seqID, '.fas', sep=''))
+	d <- DistanceMatrix(alignment_h, includeTerminalGaps = TRUE, method = 'longest', verbose=FALSE)
+	PIDs <- 1- d[upper.tri(d, diag = FALSE)]
+	AvgPIDs <- c(AvgPIDs, mean(PIDs))
+} 
+names(AvgPIDs) <- unique(answer$ID1)
+saveRDS(AvgPIDs, file='/Users/shc167/Documents/project/TR02/TR02.102/AvgPIDs.rds')
+AvgPIDs_quantile <- quantile(AvgPIDs, seq(0, 1, length.out=11))
+#         0%        10%        20%        30%        40%        50% 
+# 0.00000000 0.07500000 0.09248236 0.10731827 0.12164512 0.14051761 
+#        60%        70%        80%        90%       100% 
+# 0.15819181 0.18834262 0.23537206 0.33333333 1.00000000 
+
+# seperate ranges
+AvgPIDs_h <- AvgPIDs
+bins_aa_AvgPIDs <- list()
+for (bin_upperbound in AvgPIDs_quantile[c(2:11)]) {
+	print(bin_upperbound)
+	bins_aa_AvgPIDs[[as.character(bin_upperbound)]] <- AvgPIDs_h[AvgPIDs_h<=bin_upperbound]
+	print(length(bins_aa_AvgPIDs[[as.character(bin_upperbound)]]))
+	AvgPIDs_h <- AvgPIDs_h[AvgPIDs_h>bin_upperbound]
+}
+saveRDS(bins_aa_AvgPIDs, file='/Users/shc167/Documents/project/TR02/TR02.102/bins_aa_AvgPIDs.rds')
+lengths(bins_aa_AvgPIDs)
+#              0.075 0.0924823555140388  0.107318271174137  0.121645123384254  0.140517607289553 
+#                132                130                131                131                131 
+#  0.158191805769902  0.188342623560015  0.235372064404298  0.333333333333333                  1 
+#                130                131                131                133                129 
+
 
 # read prediction, compute prob values, fill into prob_mt
-# Fig. 2G upper: probability of detection for different PID
+# 7.542227	0.13477633	0.001423870		# DetectRepeats wE
+# 9.658749	0.0970064005	0.001423870	# DetectRepeats woE
+# 8.7e-12	0.11559572	0.0015121757	# HHrepID
+# 586.0417	0.0080883547	0.001451876	# RADAR
+# 789.2946	0.0450175669	0.001244501	# TRUST
+# 0.8000000	0.021885288	1.000936e-03	# T-REKS
+# 0.07	0.013188654	0.0010807566		# XSTREAM
 
 prob_mt <- matrix(, nrow = 7, ncol = 10)
 rownames(prob_mt) <- c('DRwE', 'DRwoE', 'HHrepID', 'RADAR', 'TRUST', 'TReks', 'XSTREAM')
-colnames(prob_mt) <- names(bins_aa)
+colnames(prob_mt) <- names(bins_aa_AvgPIDs)
 predict <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/DetectRepeats_wE_TP_04012025.tsv', header = TRUE, sep= "\t", quote="", fill=FALSE, comment.char="")
 predict <- predict[predict$Score>=7.542227,]
-prob_mt <- get_prob_mt(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname='DRwE', colname_seqID='seqID', colname_start='Begin', colname_end='End')
+prob_mt <- get_prob_mt(prob_mt, predict, bins_aa_AvgPIDs, list_answer, prob_mt_rowname='DRwE', colname_seqID='seqID', colname_start='Begin', colname_end='End')
 
 predict <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/DetectRepeats_woE_TP_04012025.tsv', header = TRUE, sep= "\t", quote="", fill=FALSE, comment.char="")
 predict <- predict[predict$Score>=9.658749,]
-prob_mt <- get_prob_mt(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname='DRwoE', colname_seqID='seqID', colname_start='Begin', colname_end='End')
+prob_mt <- get_prob_mt(prob_mt, predict, bins_aa_AvgPIDs, list_answer, prob_mt_rowname='DRwoE', colname_seqID='seqID', colname_start='Begin', colname_end='End')
 
 predict <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/TP_out_HHrepID.tsv', header = TRUE, sep= "\t", quote="", fill=FALSE, comment.char="")
 predict <- predict[predict$P.value<=8.7e-12,]
-prob_mt <- get_prob_mt(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname='HHrepID', colname_seqID='seqID', colname_start='start', colname_end='end')
+prob_mt <- get_prob_mt(prob_mt, predict, bins_aa_AvgPIDs, list_answer, prob_mt_rowname='HHrepID', colname_seqID='seqID', colname_start='start', colname_end='end')
 
 predict <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/TP_out_RADAR.tsv', header = TRUE, sep= "\t", quote="", fill=FALSE, comment.char="")
 predict <- predict[predict$score>=586.0417,]
-prob_mt <- get_prob_mt(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname='RADAR', colname_seqID='seqID', colname_start='start', colname_end='end')
+prob_mt <- get_prob_mt(prob_mt, predict, bins_aa_AvgPIDs, list_answer, prob_mt_rowname='RADAR', colname_seqID='seqID', colname_start='start', colname_end='end')
 
 predict <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_TRUST/TP_out_TRUST.tsv', header = TRUE, sep= "\t", quote="", fill=FALSE, comment.char="")
 predict <- predict[predict$score_sum>=789.2946,]
-prob_mt <- get_prob_mt(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname='TRUST', colname_seqID='seqID', colname_start='start', colname_end='end')
+prob_mt <- get_prob_mt(prob_mt, predict, bins_aa_AvgPIDs, list_answer, prob_mt_rowname='TRUST', colname_seqID='seqID', colname_start='start', colname_end='end')
 
 predict <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/TP_out_T-REKS.tsv', header = TRUE, sep= "\t", quote="", fill=FALSE, comment.char="")
-predict <- predict[predict$Psim>=0.7916667,]
-prob_mt <- get_prob_mt(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname='TReks', colname_seqID='seqID', colname_start='start', colname_end='end')
+predict <- predict[predict$Psim>=0.8000000,]
+prob_mt <- get_prob_mt(prob_mt, predict, bins_aa_AvgPIDs, list_answer, prob_mt_rowname='TReks', colname_seqID='seqID', colname_start='start', colname_end='end')
 
 predict <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_XSTREAM/XSTREAM_TPs_v5_rename_i0.7_g3_m5_e2.0_chart.xls', header = TRUE, sep= "\t", quote="", fill=FALSE, comment.char="")
 predict <- predict[predict$consensus.error<=0.07,]
-prob_mt <- get_prob_mt(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname='XSTREAM', colname_seqID='identifier', colname_start='start', colname_end='end')
+prob_mt <- get_prob_mt(prob_mt, predict, bins_aa_AvgPIDs, list_answer, prob_mt_rowname='XSTREAM', colname_seqID='identifier', colname_start='start', colname_end='end')
 
-saveRDS(prob_mt, '/Users/shc167/Documents/project/TR02/TR02.102/prob_mt_07112025.rds')
+saveRDS(prob_mt, '/Users/shc167/Documents/project/TR02/TR02.102/prob_mt_07242025.rds')
 
 decipher_Emp_col = "#e6194B"
 decipher_noemp_col = "#f58231"
@@ -432,7 +446,7 @@ tral_col = "#800000"
 
 AvgPIDs_quantile_mid <- AvgPIDs_quantile[-length(AvgPIDs_quantile)] + diff(AvgPIDs_quantile)/2
 
-pdf(file = "~/Documents/project/TR02/TR02.102/prob_detection_07112025.pdf", width = 5, height = 3.5)
+pdf(file = "~/Documents/project/TR02/TR02.102/prob_detection_AvgPIDs_07242025.pdf", width = 5, height = 3.5)
 
 par(mar = c(5, 4, 4, 4) + 0.3)
 hist(AvgPIDs, ylab="Number of PDB chains [histogram]", xaxt='n', xlab="Average repeat PID in structural benchmark (%)")
@@ -469,21 +483,8 @@ dev.off()
 
 
 
-
-
 # Fig. 2G lower: probability of detection for different unit length
-
-############################### Probability of detection ###############################
-### Probability of detection for each tool at diff unit length range (with 0.1% FPR)
 library(DECIPHER)
-
-# read answer
-answer <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/convert_seq_id.2.tsv', header = TRUE, sep= "\t")
-
-# seq_len
-seq_len <- answer[,c('ID1', 'seq_len')]
-seq_len <- seq_len[!duplicated(seq_len),]
-seq_len <- setNames(seq_len$seq_len, seq_len$ID1)
 
 # get average unit length and copy number
 AvgLen <- c()
@@ -500,8 +501,8 @@ saveRDS(CopyNum, file='/Users/shc167/Documents/project/TR02/TR02.102/CopyNum.rds
 
 # AvgLen
 AvgLen_quantile <- quantile(AvgLen, seq(0, 1, length.out=11))
-   0%   10%   20%   30%   40%   50%   60%   70%   80%   90%  100% 
-  6.0  11.0  32.0  40.0  49.0  58.5  72.6  92.0 126.0 151.0 609.0 
+#    0%   10%   20%   30%   40%   50%   60%   70%   80%   90%  100% 
+#   6.0  11.0  32.0  40.0  49.0  58.0  72.0  91.6 125.4 151.0 609.0 
 
 # seperate ranges
 AvgLen_h <- AvgLen
@@ -514,37 +515,20 @@ for (bin_upperbound in AvgLen_quantile[c(2:11)]) {
 }
 saveRDS(bins_aa_AvgLen, file='/Users/shc167/Documents/project/TR02/TR02.102/bins_aa_AvgLen.rds')
 lengths(bins_aa_AvgLen)
-#               11               32               40               49             58.5 
-#              138              131              128              132              127 
-# 72.6000000000001               92              126              151              609 
-#              131              139              129              127              130 
+            #   11               32               40               49               58 
+            #  138              131              128              132              127 
+            #   72 91.6000000000001            125.4              151              609 
+            #  131              129              131              134              128 
 
-# list of answer
-list_answer <- list()
-for (seqID_h in names(seq_len)) {
-	list_answer[[seqID_h]] <- numeric(seq_len[seqID_h])
-	for (row_i in rownames(answer[answer$ID1==seqID_h,])) {
-		list_answer[[seqID_h]][answer[row_i,'begin_label']:answer[row_i,'end_label']] <- 1
-	}
-}
-
-get_prob_mt <- function(prob_mt, predict, bins_aa, list_answer, prob_mt_rowname, colname_seqID='seqID', colname_start='start', colname_end='end') {
-	for (range_i in names(bins_aa)) {
-		bin_i <- bins_aa[[range_i]]
-		hits_prob <- c()
-		for (seqID_h in names(bin_i)) {
-			predict_h <- numeric(length(list_answer[[seqID_h]]))
-			for (row_i in rownames(predict[predict[,colname_seqID]==seqID_h,])) {
-				predict_h[predict[row_i,colname_start]:predict[row_i,colname_end]] <- 1
-			}
-			hits_prob <- c(hits_prob, as.numeric(list_answer[[seqID_h]] %*% predict_h) / sum(list_answer[[seqID_h]]))
-		}
-		prob_mt[prob_mt_rowname,range_i] <- mean(hits_prob)
-	}
-	return(prob_mt)
-}
 
 # read prediction, compute prob values, fill into prob_mt
+# 7.542227	0.13477633	0.001423870		# DetectRepeats wE
+# 9.658749	0.0970064005	0.001423870	# DetectRepeats woE
+# 8.7e-12	0.11559572	0.0015121757	# HHrepID
+# 586.0417	0.0080883547	0.001451876	# RADAR
+# 789.2946	0.0450175669	0.001244501	# TRUST
+# 0.8000000	0.021885288	1.000936e-03	# T-REKS
+# 0.07	0.013188654	0.0010807566		# XSTREAM
 prob_mt <- matrix(, nrow = 7, ncol = 10)
 rownames(prob_mt) <- c('DRwE', 'DRwoE', 'HHrepID', 'RADAR', 'TRUST', 'TReks', 'XSTREAM')
 colnames(prob_mt) <- names(bins_aa_AvgLen)
@@ -569,14 +553,14 @@ predict <- predict[predict$score_sum>=789.2946,]
 prob_mt <- get_prob_mt(prob_mt, predict, bins_aa_AvgLen, list_answer, prob_mt_rowname='TRUST', colname_seqID='seqID', colname_start='start', colname_end='end')
 
 predict <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_T-REKS/TP_out_T-REKS.tsv', header = TRUE, sep= "\t", quote="", fill=FALSE, comment.char="")
-predict <- predict[predict$Psim>=0.7916667,]
+predict <- predict[predict$Psim>=0.8000000,]
 prob_mt <- get_prob_mt(prob_mt, predict, bins_aa_AvgLen, list_answer, prob_mt_rowname='TReks', colname_seqID='seqID', colname_start='start', colname_end='end')
 
 predict <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/CESymm_out_XSTREAM/XSTREAM_TPs_v5_rename_i0.7_g3_m5_e2.0_chart.xls', header = TRUE, sep= "\t", quote="", fill=FALSE, comment.char="")
 predict <- predict[predict$consensus.error<=0.07,]
 prob_mt <- get_prob_mt(prob_mt, predict, bins_aa_AvgLen, list_answer, prob_mt_rowname='XSTREAM', colname_seqID='identifier', colname_start='start', colname_end='end')
 
-saveRDS(prob_mt, '/Users/shc167/Documents/project/TR02/TR02.102/prob_mt_AvgLen_07142025.rds')
+saveRDS(prob_mt, '/Users/shc167/Documents/project/TR02/TR02.102/prob_mt_AvgLen_07242025.rds')
 
 decipher_Emp_col = "#e6194B"
 decipher_noemp_col = "#f58231"
@@ -589,7 +573,7 @@ tral_col = "#800000"
 
 AvgLen_quantile_mid <- AvgLen_quantile[-length(AvgLen_quantile)] + diff(AvgLen_quantile)/2
 
-pdf(file = "~/Documents/project/TR02/TR02.102/prob_detection_AvgLen_07142025.pdf", width = 5, height = 3.5)
+pdf(file = "~/Documents/project/TR02/TR02.102/prob_detection_AvgLen_07242025.pdf", width = 5, height = 3.5)
 
 par(mar = c(5, 4, 4, 4) + 0.3)
 hist(AvgLen, ylab="Number of PDB chains [histogram]", xlab="Average repeat unit length in structural benchmark (amino acid)")
