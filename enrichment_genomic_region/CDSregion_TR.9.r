@@ -4,7 +4,6 @@
 # read arguments
 ARGS <- commandArgs(trailingOnly = TRUE)
 seqID <- ARGS[1]
-
 print(ARGS)
 
 options(timeout=999999999) # default is 60 sec, will fail if the genome is too big

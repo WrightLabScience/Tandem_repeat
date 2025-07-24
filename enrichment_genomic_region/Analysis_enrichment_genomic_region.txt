@@ -86,19 +86,23 @@ Rscript fetch_source_data.1.r assembly_summary_prok_1.rds GCF_026314945 ftp_path
 
 # step1: Run DetectRepeats
 # use GCF_028858775 contig 3 as an example
-Rscript DetectRepeats_gfna.2.r GCF_026314945 1
-# combine TR results in R
-for (seqID_h in seqIDs) { # seqIDs is a list of genome IDs
-	cat(seqID_h,'\n\n')
-	fnames <- list.files(pattern = paste(seqID_h, '_[0-9]+.tr', sep=''))
-	print(fnames)
+Rscript DetectRepeats_gfna.3.r --in_file=${seqID_h}.fna.gz --contig_index=${contig_index}
+# in R, combine splitted results
+in_dir <- '/net/dali/home/mscbio/shc167/project/TR02/TR02.107/DetectRepeats_euk/'
+seqIDs <- list.dirs(path = in_dir, full.names = FALSE, recursive = FALSE)
+for (seqID_h in seqIDs) {
+	fnames <- list.files(path = paste0(in_dir, seqID_h), full.names = TRUE)
 	DR_all <- NULL
 	for (fname_h in fnames) {
 		DR_h <- readRDS(fname_h)
+		if (nrow(DR_h)>0) {
+			DR_h$Index <- as.numeric(gsub(paste0(in_dir,seqID_h,'/',seqID_h,'_([0-9]+).tr'), '\\1', fname_h))
+		}
 		DR_all <- rbind(DR_all, DR_h)
 	}
 	DR_all <- DR_all[order(DR_all$Index), ]
-	saveRDS(DR_all, paste(seqID_h, '.tr', sep=''))
+	cat(seqID_h, dim(DR_all), '\n')
+	saveRDS(DR_all, paste0(in_dir, seqID_h, '.tr'))
 }
 
 
@@ -111,111 +115,269 @@ Rscript CDSregion_TR.9.r GCF_026314945
 # step2.2: Combine TR frequencies of all prokaryotic or eukaryotic genomes
 # Analysis includes 5,374 prokaryotic and 121 eukaryotic genomes, the rest genomes are too big and failed to complete the analysis in time.
 
-# read TR positions, use eukaryote as an example
-trpos_euk_mt1000.s <- matrix(0,nrow = 1000, ncol = 199)
-trpos_euk_mt1000.e <- matrix(0,nrow = 1000, ncol = 199)
-filedir <- 'CDSregion_TR_07082024/'
-assembly_summary_euk_1 <- readRDS('assembly_summary_euk_1.rds')
-euk_seqIDs <- rownames(assembly_summary_euk_1)[! rownames(assembly_summary_euk_1) %in% pending_seqIDs] # pending_seqIDs are genomes failed to complete the analysis
-n_genomes <- length(euk_seqIDs)
-
-# stack TR frequencies from all genomes to generate a heatmap
-trpos_mt_euk <- matrix(0,nrow = n_genomes, ncol = 408)
-for (n in seq(n_genomes)) {
-	genomeID <- euk_seqIDs[n]
-	cat(n, genomeID, '\n')
-	trpos.s <- readRDS(paste(filedir, genomeID, '_start.rds', sep=''))
-	trpos.e <- readRDS(paste(filedir, genomeID, '_end.rds', sep=''))
-	trpos_mt_euk[n, c(1:199)] <- trpos.s
-	trpos_mt_euk[n, c(210:408)] <- trpos.e
-	for (j in seq(199)) {
-		# start
-		i <- floor(trpos.s[j]/0.001)+1
-		trpos_euk_mt1000.s[i,j] <- trpos_euk_mt1000.s[i,j]+1
-		# end
-		i <- floor(trpos.e[j]/0.001)+1
-		trpos_euk_mt1000.e[i,j] <- trpos_euk_mt1000.e[i,j]+1
+# read TR freq at start and stop regions
+TR_freq_matrix <- function(in_dir) {
+	heatmap_start <- matrix(0,nrow = 1000, ncol = 199)
+	heatmap_stop <- matrix(0,nrow = 1000, ncol = 199)
+	seqIDs <- gsub('_start.rds', '', list.files(path = in_dir, pattern = '*_start.rds'))
+	cat('Total number of genomes =', length(seqIDs), '\n')
+	TR_freq_combined <- matrix(0,nrow = length(seqIDs), ncol = 408)
+	for (k in seq_along(seqIDs)) {
+		seqID_h <- seqIDs[k]
+		#cat(k, seqID_h, '\n')
+		TR_freq_start_h <- readRDS(paste0(in_dir, seqID_h, '_start.rds'))
+		TR_freq_stop_h <- readRDS(paste0(in_dir, seqID_h, '_end.rds'))
+		TR_freq_combined[k, c(1:199)] <- TR_freq_start_h
+		TR_freq_combined[k, c(210:408)] <- TR_freq_stop_h
+		for (j in seq(199)) {
+			# start
+			i <- floor(TR_freq_start_h[j]/0.001)+1
+			heatmap_start[i,j] <- heatmap_start[i,j]+1
+			# stop
+			i <- floor(TR_freq_stop_h[j]/0.001)+1
+			heatmap_stop[i,j] <- heatmap_stop[i,j]+1
+		}
 	}
+	TR_freq_median <- c(apply(TR_freq_combined,2,median)*100, 8,8,8)
+	heatmap_combined <- cbind(heatmap_start, matrix(0,nrow = 1000, ncol = 10), heatmap_stop)
+	cat('Max value =', max(heatmap_combined), ', Max freq =', max(heatmap_combined)/length(seqIDs), '\n')
+	output <- list(
+		seqIDs = seqIDs,
+		heatmap_start = heatmap_start,
+		heatmap_stop = heatmap_stop,
+		heatmap_combined = heatmap_combined,
+		TR_freq_combined = TR_freq_combined,
+		TR_freq_median = TR_freq_median
+	)
+	return(output)
 }
-trpos_median_euk <- apply(trpos_mt_euk,2,median)*100
-trpos_median_euk <- c(trpos_median_euk, 8,8,8)
 
-# cbind trpos_mt.s and trpos_mt.e with gap
-trpos_mt1000.gap <- matrix(0,nrow = 1000, ncol = 10)
-trpos_mt1000.cbind <- cbind(trpos_euk_mt1000.s, trpos_mt1000.gap, trpos_euk_mt1000.e)
-max(trpos_mt1000.cbind)
-[1] 22
-# 22/121=18.2% maximum for eukaryotes
-# 668/5374=12.4% maximum for prokaryotes
-
-save(trpos_mt1000.cbind, assembly_summary_euk_1, trpos_median_euk, file='/Users/shc167/Documents/project/TR02/TR02.82/trpos_euk.RData', compress = "xz")
+TR_freq_prok <- TR_freq_matrix(in_dir='/Users/shc167/project/TR02/TR02.107/CDSregion_TR_prok/')
+# Total number of genomes = 5374 
+# Max value = 578 , Max freq = 0.1075549 
+TR_freq_euk <- TR_freq_matrix(in_dir='/Users/shc167/project/TR02/TR02.107/CDSregion_TR_euk/')
+# Total number of genomes = 121 
+# Max value = 18 , Max freq = 0.1487603 
+save(TR_freq_prok,TR_freq_euk, file='TR_freq.RData', compress = "xz")
 
 
 # step2.3: Plot heatmap and TR frequency median
 # heatmap use 9-class BuPu
 library("RColorBrewer")
 library("gplots")
+BuPu_20 <- colorRampPalette(brewer.pal(9, "BuPu"), bias = 1)(20) # 20 colors, bias = 1
 
-# 20 colors, bias = 1
-BuPu_20 <- colorRampPalette(brewer.pal(9, "BuPu"), bias = 1)(20)
-heatmap.2(trpos_mt1000.cbind[c(80:1),], scale = "none", col = BuPu_20, main='bias = 1',
+# prok
+pdf(file = "CDSregion_TR_prok_heatmap.1.pdf", width = 10, height = 10)
+heatmap.2(TR_freq_prok[["heatmap_combined"]][c(80:1),], scale = "none", col = BuPu_20, main='bias = 1',
 		  Rowv=NA, Colv=NA, dendrogram = "none",
 		  trace = "none", density.info = "none")
+dev.off()
 
-# TR frequency median
-plot(trpos_median_euk, type='l')
+pdf(file = "CDSregion_TR_prok_median.1.pdf", width = 10, height = 10)
+plot(TR_freq_prok[["TR_freq_median"]], type='l')
+dev.off()
 
+# euk
+pdf(file = "CDSregion_TR_euk_heatmap.1.pdf", width = 10, height = 10)
+heatmap.2(TR_freq_euk[["heatmap_combined"]][c(80:1),], scale = "none", col = BuPu_20, main='bias = 1',
+		  Rowv=NA, Colv=NA, dendrogram = "none",
+		  trace = "none", density.info = "none")
+dev.off()
 
-
+pdf(file = "CDSregion_TR_euk_median.1.pdf", width = 10, height = 10)
+plot(TR_freq_euk[["TR_freq_median"]], type='l')
+dev.off()
 
 
 
 # step3: plot delta of TR frequency median between genic and intergenic
-# Adjust P-values for Multiple Comparisons
-
-#### prok ####
-start_intergenic_meds_prok <- c()
-start_intragenic_meds_prok <- c()
-stop_intergenic_meds_prok <- c()
-stop_intragenic_meds_prok <- c()
-for (distance_h in seq(99)) {
-	start_intergenic_col <- 100-distance_h
-	start_intragenic_col <- 100+distance_h
-	stop_intragenic_col <- 309-distance_h
-	stop_intergenic_col <- 309+distance_h
-	# test start
-	start_intergenic_meds_prok <- c(start_intergenic_meds_prok, median(trpos_mt_prok[,start_intergenic_col]))
-	start_intragenic_meds_prok <- c(start_intragenic_meds_prok, median(trpos_mt_prok[,start_intragenic_col]))
-	stop_intergenic_meds_prok <- c(stop_intergenic_meds_prok, median(trpos_mt_prok[,stop_intergenic_col]))
-	stop_intragenic_meds_prok <- c(stop_intragenic_meds_prok, median(trpos_mt_prok[,stop_intragenic_col]))
-}
-#### euk ####
-start_intergenic_meds_euk <- c()
-start_intragenic_meds_euk <- c()
-stop_intergenic_meds_euk <- c()
-stop_intragenic_meds_euk <- c()
-for (distance_h in seq(99)) {
-	start_intergenic_col <- 100-distance_h
-	start_intragenic_col <- 100+distance_h
-	stop_intragenic_col <- 309-distance_h
-	stop_intergenic_col <- 309+distance_h
-	# test start
-	start_intergenic_meds_euk <- c(start_intergenic_meds_euk, median(trpos_mt_euk[,start_intergenic_col]))
-	start_intragenic_meds_euk <- c(start_intragenic_meds_euk, median(trpos_mt_euk[,start_intragenic_col]))
-	stop_intergenic_meds_euk <- c(stop_intergenic_meds_euk, median(trpos_mt_euk[,stop_intergenic_col]))
-	stop_intragenic_meds_euk <- c(stop_intragenic_meds_euk, median(trpos_mt_euk[,stop_intragenic_col]))
+# Adjust P-values for Multiple Comparisons (KS test on all values)
+# test positions with the same distances to start or end
+# start -99 vs +100
+KStest_TR <- function(TR_freq_combined, KStest_direction) {
+	start_pvalues <- c()
+	stop_pvalues <- c()
+	for (distance_h in seq(99)) {
+		start_intergenic_col <- 100-distance_h
+		start_intragenic_col <- 100+distance_h
+		stop_intragenic_col <- 309-distance_h
+		stop_intergenic_col <- 309+distance_h
+		# test start
+		start_kstest <- ks.test(TR_freq_combined[,start_intergenic_col], TR_freq_combined[,start_intragenic_col], alternative=KStest_direction)
+		start_pvalues <- c(start_pvalues, start_kstest[["p.value"]])
+		# test stop
+		stop_kstest <- ks.test(TR_freq_combined[,stop_intergenic_col], TR_freq_combined[,stop_intragenic_col], alternative=KStest_direction)
+		stop_pvalues <- c(stop_pvalues, stop_kstest[["p.value"]])
+	}
+	output <- list(
+		start_pvalues = start_pvalues,
+		stop_pvalues = stop_pvalues
+	)
+	return(output)
 }
 
-plot_min <- min(start_intergenic_meds_prok-start_intragenic_meds_prok, start_intergenic_meds_euk-start_intragenic_meds_euk, stop_intergenic_meds_prok-stop_intragenic_meds_prok, stop_intergenic_meds_euk-stop_intragenic_meds_euk)
-plot_max <- max(start_intergenic_meds_prok-start_intragenic_meds_prok, start_intergenic_meds_euk-start_intragenic_meds_euk, stop_intergenic_meds_prok-stop_intragenic_meds_prok, stop_intergenic_meds_euk-stop_intragenic_meds_euk)
+KStest_TR_prok <- KStest_TR(TR_freq_combined=TR_freq_prok[['TR_freq_combined']], KStest_direction='less')
+KStest_TR_euk <- KStest_TR(TR_freq_combined=TR_freq_euk[['TR_freq_combined']], KStest_direction='greater')
+save(KStest_TR_prok,KStest_TR_euk, file='KStest_TR.RData', compress = "xz")
 
-par(mfrow = c(1, 2), mar=c(4,4,2,1))
+# plot
+pdf(file = "delta_TRfreq.1.pdf", width = 15, height = 5.5)
+par(mfrow = c(1, 2), mar=c(4,2,2,1))
 # start region: distance to M
-plot(start_intergenic_meds_prok-start_intragenic_meds_prok, ylim=c(plot_min,plot_max),col='orange', xlab='Distance from start (nucleotides)',ylab=expression(paste(Delta, " genic - intergenic (%)")), main='Start region', pch=ifelse(p.adjust(start_pvalues_prok, method = "holm") < 0.05, 16, 1))
+plot(TR_freq_prok[['TR_freq_median']][99:1]-TR_freq_prok[['TR_freq_median']][101:199], ylim=c(-1,2.5),col='orange', xlab='Distance from start (nucleotides)',ylab=expression(paste(Delta, "Tandem repeat frequency (%)\n(intergenic - genic)")), main='Start region', pch=ifelse(p.adjust(KStest_TR_prok[['start_pvalues']], method = "holm") < 0.05, 16, 1))
 abline(h=0)
-points(start_intergenic_meds_euk-start_intragenic_meds_euk, col='blue', pch=ifelse(p.adjust(start_pvalues_euk, method = "holm") < 0.05, 16, 1))
-
+points(TR_freq_euk[['TR_freq_median']][99:1]-TR_freq_euk[['TR_freq_median']][101:199], col='blue', pch=ifelse(p.adjust(KStest_TR_euk[['start_pvalues']], method = "holm") < 0.05, 16, 1))
 # stop region: distance to *
-plot(stop_intergenic_meds_prok-stop_intragenic_meds_prok, ylim=c(plot_min,plot_max),col='orange', xlab='Distance from stop (nucleotides)',ylab=expression(paste(Delta, " genic - intergenic (%)")), main='stop region', pch=ifelse(p.adjust(stop_pvalues_prok, method = "holm") < 0.05, 16, 1))
+plot(TR_freq_prok[['TR_freq_median']][310:408]-TR_freq_prok[['TR_freq_median']][308:210], ylim=c(-1,2.5),col='orange', xlab='Distance from stop (nucleotides)',ylab=NA, main='Stop region', pch=ifelse(p.adjust(KStest_TR_prok[['stop_pvalues']], method = "holm") < 0.05, 16, 1))
 abline(h=0)
-points(stop_intergenic_meds_euk-stop_intragenic_meds_euk, col='blue', pch=ifelse(p.adjust(stop_pvalues_euk, method = "holm") < 0.05, 16, 1))
+points(TR_freq_euk[['TR_freq_median']][310:408]-TR_freq_euk[['TR_freq_median']][308:210], col='blue', pch=ifelse(p.adjust(KStest_TR_euk[['stop_pvalues']], method = "holm") < 0.05, 16, 1))
+dev.off()
+
+
+
+
+# compute background average tandem repeat
+# prokaryote
+cd /net/dali/home/mscbio/shc167/project/TR02/TR02.107/DetectRepeats_prok; ls -1 | wc -l
+5374
+
+rsync -avz --progress ~/Documents/scripts_TR/bgAvgTR.2.r shc167@cluster.csb.pitt.edu:~/project/TR02/TR02.107/
+
+############################# Run bgAvgTR prok #############################
+vim ~/project/TR02/TR02.107/bgAvgTR_prok.slurm
+#!/bin/bash
+
+#SBATCH -J bgAvgTR_prok
+#SBATCH -p dept_cpu
+#SBATCH -c 1
+#SBATCH --exclude=n121
+#SBATCH --mem=4G
+#SBATCH -a 0-5373%200
+
+# setup SCRDIR
+SCRDIR=/scr/${SLURM_JOB_ID}
+mkdir /scr/${SLURM_JOB_ID}
+cd $SCRDIR
+echo "SCRDIR:" /net/$SLURMD_NODENAME/scr/${SLURM_JOB_ID}
+echo "My SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
+rsync -av ~/project/TR02/TR02.107/bgAvgTR.2.r ${SCRDIR}/
+
+List=`cut -f1 ~/project/TR02/TR02.107/queue_list_prok.txt`
+arr=($List)
+seqID_h=${arr[$SLURM_ARRAY_TASK_ID]}
+echo "My SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
+echo "prok seqID_h: " ${seqID_h}
+rsync -av ~/project/TR02/TR02.107/DetectRepeats_prok/${seqID_h}.tr ${SCRDIR}/
+rsync -av ~/project/TR02/TR02.107/source_data_07022024/genomic.fna/${seqID_h}.fna.gz ${SCRDIR}/
+
+## CDSregion_TR ##
+Rscript bgAvgTR.2.r ${seqID_h}
+
+# clean files
+trap "rm -r $SCRDIR" EXIT
+
+# echo information
+echo $SLURM_SUBMIT_DIR
+echo $SLURMD_NODENAME
+echo $SLURM_JOB_ID
+echo $SLURM_ARRAY_TASK_ID
+########### END OF SCRIPT ###########
+# run slurm
+mkdir ~/project/TR02/TR02.107/runSlurm_bgAvgTR_prok/
+cd ~/project/TR02/TR02.107/runSlurm_bgAvgTR_prok/
+sbatch ~/project/TR02/TR02.107/bgAvgTR_prok.slurm
+# Submitted batch job 47518966
+
+############################# Run bgAvgTR euk #############################
+vim ~/project/TR02/TR02.107/bgAvgTR_euk.slurm
+#!/bin/bash
+
+#SBATCH -J bgAvgTR_euk
+#SBATCH -p dept_cpu
+#SBATCH -c 1
+#SBATCH --exclude=n121
+#SBATCH --mem=16G
+#SBATCH -a 0-120
+
+# setup SCRDIR
+SCRDIR=/scr/${SLURM_JOB_ID}
+mkdir /scr/${SLURM_JOB_ID}
+cd $SCRDIR
+echo "SCRDIR:" /net/$SLURMD_NODENAME/scr/${SLURM_JOB_ID}
+echo "My SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
+rsync -av ~/project/TR02/TR02.107/bgAvgTR.2.r ${SCRDIR}/
+
+List=`cut -f1 ~/project/TR02/TR02.107/queue_list_euk.txt`
+arr=($List)
+seqID_h=${arr[$SLURM_ARRAY_TASK_ID]}
+echo "My SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
+echo "euk seqID_h: " ${seqID_h}
+rsync -av ~/project/TR02/TR02.107/DetectRepeats_euk/${seqID_h}.tr ${SCRDIR}/
+rsync -av ~/project/TR02/TR02.107/source_data_07022024/genomic.fna/${seqID_h}.fna.gz ${SCRDIR}/
+
+## CDSregion_TR ##
+Rscript bgAvgTR.2.r ${seqID_h}
+
+# clean files
+trap "rm -r $SCRDIR" EXIT
+
+# echo information
+echo $SLURM_SUBMIT_DIR
+echo $SLURMD_NODENAME
+echo $SLURM_JOB_ID
+echo $SLURM_ARRAY_TASK_ID
+########### END OF SCRIPT ###########
+# run slurm
+mkdir ~/project/TR02/TR02.107/runSlurm_bgAvgTR_euk/
+cd ~/project/TR02/TR02.107/runSlurm_bgAvgTR_euk/
+sbatch ~/project/TR02/TR02.107/bgAvgTR_euk.slurm
+# Submitted batch job 47535349
+
+cd ~/project/TR02/TR02.107/runSlurm_bgAvgTR_prok/; ls -1 *.out | wc -l
+grep -h 'background_average_TR' *.out | sed 's/# background_average_TR://g' > ~/project/TR02/TR02.107/bgAvgTR_prok.tsv
+cd ~/project/TR02/TR02.107/runSlurm_bgAvgTR_euk/; ls -1 *.out | wc -l
+grep -h 'background_average_TR' *47535349*.out | sed 's/# background_average_TR://g' > ~/project/TR02/TR02.107/bgAvgTR_euk.tsv
+wc -l ~/project/TR02/TR02.107/bgAvgTR_*.tsv
+   121 /net/dali/home/mscbio/shc167/project/TR02/TR02.107/bgAvgTR_euk.tsv
+  5374 /net/dali/home/mscbio/shc167/project/TR02/TR02.107/bgAvgTR_prok.tsv
+  5495 total
+
+rsync -avz --progress shc167@cluster.csb.pitt.edu:~/project/TR02/TR02.107/bgAvgTR_\*.tsv /Users/shc167/Documents/project/TR02/TR02.107/
+
+bgAvgTR_prok <- read.table('/Users/shc167/Documents/project/TR02/TR02.107/bgAvgTR_prok.tsv', sep='\t', row.names=1)
+bgAvgTR_euk <- read.table('/Users/shc167/Documents/project/TR02/TR02.107/bgAvgTR_euk.tsv', sep='\t', row.names=1)
+summary(bgAvgTR_prok$V2)
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+0.002007 0.013976 0.018779 0.021269 0.025757 0.132889
+summary(bgAvgTR_euk$V2)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+0.01488 0.02283 0.03178 0.04323 0.04948 0.26788 
+
+library(vioplot)
+vioplot(bgAvgTR_prok$V2, bgAvgTR_euk$V2,
+        names = c("Prokaryotes", "Eukaryotes"),
+        col = c("skyblue", "salmon"),
+        main = "Average TR content")
+
+
+# prok
+pdf(file = "~/Documents/project/TR02/TR02.107/CDSregion_TR_prok_heatmap.2.pdf", width = 10, height = 10)
+heatmap.2(TR_freq_prok[["heatmap_combined"]][c(80:1),], scale = "none", col = BuPu_20, main='bias = 1',
+		  Rowv=NA, Colv=NA, dendrogram = "none",
+		  trace = "none", density.info = "none")
+abline(h = 0, col = "black", lwd = 1)
+abline(h = mean(bgAvgTR_prok$V2), col = "red", lwd = 1)
+abline(h = 0.08, col = "black", lwd = 1)
+dev.off()
+
+
+# euk
+pdf(file = "~/Documents/project/TR02/TR02.107/CDSregion_TR_euk_heatmap.2.pdf", width = 10, height = 10)
+heatmap.2(TR_freq_euk[["heatmap_combined"]][c(80:1),], scale = "none", col = BuPu_20, main='bias = 1',
+		  Rowv=NA, Colv=NA, dendrogram = "none",
+		  trace = "none", density.info = "none")
+abline(h = 0, col = "black", lwd = 1)
+abline(h = mean(bgAvgTR_euk$V2), col = "red", lwd = 1)
+abline(h = 0.08, col = "black", lwd = 1)
+dev.off()

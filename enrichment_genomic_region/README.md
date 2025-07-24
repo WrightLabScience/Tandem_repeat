@@ -27,7 +27,7 @@ Step 1: Run DetectRepeats
 Run DetectRepeats on whole genome sequence
 
 Scripts:
- - DetectRepeats_gfna.2.r
+ - DetectRepeats_gfna.3.r
 
 
 
@@ -40,15 +40,23 @@ Scripts:
  - CDSregion_TR.9.r
 
 File paths: 
- - trpos_prok.RData
- - trpos_euk.RData
+ - TR_freq.RData
 
 
 
 Step 3: TR enrichment analysis
 ---
+Plot TR frequency, median, genome-wide average \
 Plot delta of TR frequency median between genic and intergenic \
 region around start codon: distance to M \
 region around stop codon: distance to * \
 Find position(distance) with TR enrichment \
 Adjust P-values for multiple comparisons
+
+Scripts:
+ - bgAvgTR.2.r
+
+File paths: 
+ - KStest_TR.RData
+ - bgAvgTR_prok.tsv
+ - bgAvgTR_euk.tsv
