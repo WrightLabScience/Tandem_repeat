@@ -3,6 +3,7 @@ Analysis_prok_K00689_species_tree.txt
 Shu-Ting Cho <shutingcho@pitt.edu>
 
 # Prokaryotic gene K00689 tandem repeat analysis
+# For Figure 6D
 
 # Task: Make species tree for genomes included in this analysis
 # 0. Collect 16S, rpoB, rpoC gene sequences

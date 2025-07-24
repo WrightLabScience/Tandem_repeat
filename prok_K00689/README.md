@@ -1,5 +1,5 @@
 # Prokaryotic gene K00689 tandem repeat analysis
-To generate figure 6C, 6D, S2
+To generate figure 6C, 6D, S4
 
 Step 0: Prepare source data
 ---

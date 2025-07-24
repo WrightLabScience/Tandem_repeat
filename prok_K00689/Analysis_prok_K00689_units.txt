@@ -4,7 +4,7 @@ Shu-Ting Cho <shutingcho@pitt.edu>
 
 # Prokaryotic gene K00689 tandem repeat analysis
 
-## Figure S2. Tandem repeat units in gene K00689 were classified into twelve groups.
+## Figure S4. Tandem repeat units in gene K00689 were classified into twelve groups.
 
 # Task: Make repeat unit tree
 # 0. manually define unit

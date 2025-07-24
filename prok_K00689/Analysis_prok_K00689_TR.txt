@@ -3,6 +3,7 @@ Analysis_prok_K00689_TR.txt
 Shu-Ting Cho <shutingcho@pitt.edu>
 
 # Prokaryotic gene K00689 tandem repeat analysis
+# For Figure 6D
 
 # Task: Make gene tree
 # 1. Detect tandem repeat in K00689 sequences
