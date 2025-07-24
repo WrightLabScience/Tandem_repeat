@@ -69,12 +69,6 @@ for (filename_h in filenames) {
 }
 Tally_CESymm_merged <- merge(x=res, y=Tally_result_all, by = 'Id', all=TRUE)
 
-pdf(file = "/Users/shc167/Documents/project/TR02/TR02.102/Tally_val_DetectRepeats.1.pdf", width = 5, height = 5.5)
-plot(x=Tally_CESymm_merged$V11, y=Tally_CESymm_merged$Tally, log='x', main='Tally validation for CE-Symm', xlab='CE-Symm TM-Score', ylab='Tally score', pch=16, col='#00000033', cex=0.5)
-lines(smooth.spline(x=Tally_CESymm_merged$V11, y=Tally_CESymm_merged$Tally, df=8), col='red',lwd=1)
-abline(h=0.5, col="gray",lty = 1)
-dev.off()
-
 # no point at bottom right
 nrow(Tally_CESymm_merged[(Tally_CESymm_merged$Score>=8 & Tally_CESymm_merged$Tally>=0.5),])
 [1] 171 # Tally v; DetectRepeats v
@@ -123,13 +117,6 @@ for (filename_h in filenames) {
 Tally_result_all$row_i <- gsub('#([0-9]+)_.+','\\1',Tally_result_all$Id)
 Tally_result_all$seqID <- gsub('#[0-9]+_(.+)','\\1',Tally_result_all$Id)
 Tally_DetectRepeats_wE_merged <- merge(x=DetectRepeats_wE_TP_04012025, y=Tally_result_all, by.x = 'row.names', by.y = 'row_i', all=TRUE)
-
-pdf(file = "/Users/shc167/Documents/project/TR02/TR02.102/Tally_val_DetectRepeats.1.pdf", width = 5, height = 5.5)
-plot(x=Tally_DetectRepeats_wE_merged$Score, y=Tally_DetectRepeats_wE_merged$Tally, log='x', main='Tally validation for DetectRepeats', xlab='DetectRepeats Score', ylab='Tally score', pch=16, col='#00000033', cex=0.5)
-lines(smooth.spline(x=Tally_DetectRepeats_wE_merged$Score, y=Tally_DetectRepeats_wE_merged$Tally, df=8), col='red',lwd=1)
-abline(v=8, col="gray",lty = 1)
-abline(h=0.5, col="gray",lty = 1)
-dev.off()
 
 # no point at bottom right
 nrow(Tally_DetectRepeats_wE_merged[(Tally_DetectRepeats_wE_merged$Score>=8 & Tally_DetectRepeats_wE_merged$Tally>=0.5),])
@@ -204,13 +191,6 @@ Tally_result_all$row_i <- gsub('#([0-9]+)_.+','\\1',Tally_result_all$Id)
 Tally_result_all$seqID <- gsub('#[0-9]+_(.+)','\\1',Tally_result_all$Id)
 Tally_DetectRepeats_woE_merged <- merge(x=DetectRepeats_woE_TP_04012025, y=Tally_result_all, by.x = 'row.names', by.y = 'row_i', all=TRUE)
 
-pdf(file = "/Users/shc167/Documents/project/TR02/TR02.102/Tally_val_DetectRepeats.1.pdf", width = 5, height = 5.5)
-plot(x=Tally_DetectRepeats_woE_merged$Score, y=Tally_DetectRepeats_woE_merged$Tally, log='x', main='Tally validation for DetectRepeats (w/o empirical)', xlab='DetectRepeats Score', ylab='Tally score', pch=16, col='#00000033', cex=0.5)
-lines(smooth.spline(x=Tally_DetectRepeats_woE_merged$Score, y=Tally_DetectRepeats_woE_merged$Tally, df=8), col='red',lwd=1)
-abline(v=8, col="gray",lty = 1)
-abline(h=0.5, col="gray",lty = 1)
-dev.off()
-
 # no point at bottom right
 nrow(Tally_DetectRepeats_woE_merged[(Tally_DetectRepeats_woE_merged$Score>=8 & Tally_DetectRepeats_woE_merged$Tally>=0.5),])
 [1] 171 # Tally v; DetectRepeats v
@@ -249,13 +229,7 @@ TP_out_HHrepID$Id <- paste0('#', TP_out_HHrepID$seqID, '_', TP_out_HHrepID$Type)
 TP_out_HHrepID <- unique(TP_out_HHrepID[,c('Id', 'Repeats','P.value')])
 # merge
 Tally_HHrepID_merged <- merge(x=TP_out_HHrepID, y=Tally_result_all, by = 'Id', all=TRUE)
-# plot
-pdf(file = "~/Documents/project/TR02/TR02.102/Tally_val_HHrepID.1.pdf", width = 5, height = 5.5)
-plot(x=Tally_HHrepID_merged$P.value, y=Tally_HHrepID_merged$Tally, log='x', main='Tally validation for HHrepID', xlab='HHrepID P-value', ylab='Tally Score', pch=16, col='#00000033', cex=0.5, xlim=c(1,1e-20,))
-lines(smooth.spline(x=Tally_HHrepID_merged$P.value, y=Tally_HHrepID_merged$Tally, df=8), col='red',lwd=1)
-abline(v=0.001, col="gray",lty = 1)
-abline(h=0.5, col="gray",lty = 1)
-dev.off() 
+
 nrow(Tally_HHrepID_merged[(Tally_HHrepID_merged$P.value<=0.001 & Tally_HHrepID_merged$Tally<0.5),])
 [1] 91 # HHrepID v; Tally x; FP
 
@@ -285,13 +259,7 @@ TP_out_TRUST <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/CESymm
 TP_out_TRUST$Id <- paste0('#', TP_out_TRUST$seqID, '_', TP_out_TRUST$type)
 TP_out_TRUST <- unique(TP_out_TRUST[,c('Id', 'score_sum')])
 Tally_TRUST_merged <- merge(x=TP_out_TRUST, y=Tally_result_all, by = 'Id', all=TRUE)
-# plot
-pdf(file = "~/Documents/project/TR02/TR02.102/Tally_val_TRUST.1.pdf", width = 5, height = 5.5)
-plot(x=Tally_TRUST_merged$score_sum, y=Tally_TRUST_merged$Tally, log='x', main='Tally validation for TRUST', xlab='TRUST Score', ylab='Tally Score', pch=16, col='#00000033', cex=0.5)
-lines(smooth.spline(x=Tally_TRUST_merged$score_sum, y=Tally_TRUST_merged$Tally, df=10), col='red',lwd=1)
-#abline(v=0.001, col="gray",lty = 1)
-abline(h=0.5, col="gray",lty = 1)
-dev.off() 
+
 nrow(Tally_TRUST_merged[(Tally_TRUST_merged$Tally<0.5),])
 [1] 149 # TRUST ?; Tally x; FP
 nrow(Tally_TRUST_merged[(Tally_TRUST_merged$Tally>=0.5),])
@@ -322,13 +290,7 @@ TP_out_TREKS <- read.table('/Users/shc167/Documents/project/TR02/TR02.102/CESymm
 # merge
 TP_out_TREKS$Id <- paste0('#', TP_out_TREKS$seqID, '_', TP_out_TREKS$repeatID)
 Tally_TREKS_merged <- merge(x=TP_out_TREKS, y=Tally_result_all, by = 'Id', all=TRUE)
-# plot
-pdf(file = "~/Documents/project/TR02/TR02.102/Tally_val_T-REKS.1.pdf", width = 5, height = 5.5)
-plot(x=Tally_TREKS_merged$Psim.x, y=Tally_TREKS_merged$Tally, main='Tally validation for T-REKS', xlab='T-REKS Psim', ylab='Tally Score', pch=16, col='#00000033', cex=0.5)
-lines(smooth.spline(x=Tally_TREKS_merged$Psim.x, y=Tally_TREKS_merged$Tally, df=8), col='red',lwd=1)
-abline(v=0.7, col="gray",lty = 1)
-abline(h=0.5, col="gray",lty = 1)
-dev.off() 
+
 nrow(Tally_TREKS_merged[(Tally_TREKS_merged$Psim.x>=0.7 & Tally_TREKS_merged$Tally<0.5),])
 [1] 31 # T-REKS v; Tally x; FP
 
@@ -380,15 +342,7 @@ TP_out_XSTREAM <- predict_df
 # merge
 TP_out_XSTREAM$Id <- paste0('#', TP_out_XSTREAM$identifier, '_', TP_out_XSTREAM$repeatID)
 Tally_XSTREAM_merged <- merge(x=TP_out_XSTREAM, y=Tally_result_all, by = 'Id', all=TRUE)
-# plot
-pdf(file = "~/Documents/project/TR02/TR02.102/Tally_val_XSTREAM.1.pdf", width = 5, height = 5.5)
-plot(x=Tally_XSTREAM_merged$consensus.error, y=Tally_XSTREAM_merged$Tally, main='Tally validation for XSTREAM', xlab='XSTREAM consensus error', ylab='Tally Score', pch=16, col='#00000033', cex=0.5, xlim=c(0.3,0))
-lines(smooth.spline(x=Tally_XSTREAM_merged$consensus.error, y=Tally_XSTREAM_merged$Tally, df=8), col='red',lwd=1)
-abline(v=0.2, col="gray",lty = 1)
-abline(h=0.5, col="gray",lty = 1)
-dev.off() 
-nrow(Tally_XSTREAM_merged[(Tally_XSTREAM_merged$consensus.error<=0.2 & Tally_XSTREAM_merged$Tally<0.5),])
-[1] 13 # XSTREAM v; Tally x; FP
+
 
 
 ############################### RADAR ###############################
@@ -418,12 +372,7 @@ TP_out_RADAR$Id <- paste0('#', TP_out_RADAR$seqID, '_', TP_out_RADAR$Level)
 TP_out_RADAR <- unique(TP_out_RADAR[,c('Id', 'Total_Score')])
 # merge
 Tally_RADAR_merged <- merge(x=TP_out_RADAR, y=Tally_result_all, by = 'Id', all=TRUE)
-# plot
-pdf(file = "~/Documents/project/TR02/TR02.102/Tally_val_RADAR.1.pdf", width = 5, height = 5.5)
-plot(x=Tally_RADAR_merged$Total_Score, y=Tally_RADAR_merged$Tally, log='x', main='Tally validation for RADAR', xlab='RADAR Total_Score', ylab='Tally Score', pch=16, col='#00000033', cex=0.5)
-lines(smooth.spline(x=Tally_RADAR_merged$Total_Score, y=Tally_RADAR_merged$Tally, df=8), col='red',lwd=1)
-abline(h=0.5, col="gray",lty = 1)
-dev.off() 
+
 nrow(Tally_RADAR_merged[Tally_RADAR_merged$Tally<0.5,])
 [1] 91 # RADAR v; Tally x; FP
 
