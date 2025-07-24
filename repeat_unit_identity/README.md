@@ -1,5 +1,5 @@
 # Tandem repeat units' percent identities distribution for each gene group
-To generate figure 6A, 6B, S1
+To generate figure 6A, 6B, S3
 
 Step 0: Prepare source data
 ---
@@ -21,7 +21,7 @@ Notes:
  - Analysis_TR_unit_distance.txt
 
 Script:
- - DECIPHER_DetectRepeats.10.r
+ - DECIPHER_DetectRepeats_batch.1.r
 
 	 
 Step 2: Calculate unit distances of the main tandem repeat in each Kgroup
@@ -34,7 +34,7 @@ Notes:
  - Analysis_TR_unit_distance.txt
 
 Script:
- - TR_dist.15.r
+ - TR_dist.16.r
 
 
 Step 3: Plot

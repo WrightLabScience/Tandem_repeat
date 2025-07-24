@@ -1,23 +1,35 @@
 # Usage: 
-# Rscript TR_dist.15.r K00001
+# Rscript TR_dist.16.r --seqID=K00001
 
-# read inputs
+# load libraries
+library(optparse, quietly = TRUE, verbose=FALSE)
+
+# specify options in a list
+option_list = list(
+	make_option("--seqID", type="character", default="NA", help="input file (Required)", metavar="filename"),
+	make_option("--minScore", type="integer", default=8, help="score cutoff for DetectRepeats' results", metavar="number")
+);
+
+# get command line options, if help option encountered print help and exit,
+# otherwise if options not found on command line then set defaults,
+opt <- parse_args(OptionParser(usage = "usage: %prog [options]", option_list=option_list))
+
+# read arguments
 ARGS <- commandArgs(trailingOnly = TRUE)
-Kgroup_h <- ARGS[1]
-
-print(ARGS)
-
-MSA_h <- readRDS(paste(Kgroup_h, '.msa', sep=''))
-TR_h <- readRDS(paste(Kgroup_h, '.tr', sep=''))
+seqID <- opt$seqID
+minScore <- as.numeric(opt$minScore)
+MSA_h <- readRDS(paste(seqID, '.msa', sep=''))
+TR_h <- readRDS(paste(seqID, '.tr', sep=''))
+TR_h <- TR_h[TR_h$Score>=minScore,]
+cat(seqID, minScore, '\n')
 
 start_time <- Sys.time()
 
 # load libraries
-suppressMessages(library(DECIPHER))
+suppressMessages(library(DECIPHER, quietly = TRUE, verbose=FALSE))
 packageVersion("DECIPHER")
 
 options(timeout=999999999) # default is 60 sec, will fail if the genome is too big
-
 ######################## functions ########################
 # matrix of MSA
 get_mt_MSA <- function(MSA_h) {
@@ -121,7 +133,7 @@ copy_numbers <- c()
 count_all_TR <- 0
 
 if (!is.null(TR_h) & nrow(TR_h)>0) { # ignore K group if no repeat detect
-    #cat('\n', Kgroup_h, 'has TR.\n')
+    #cat('\n', seqID, 'has TR.\n')
     count_seq <- length(MSA_h)
     count_all_TR <- length(unique(TR_h$Index))
     # filter TR by unit length median >= 10
@@ -218,21 +230,21 @@ if (!is.null(TR_h) & nrow(TR_h)>0) { # ignore K group if no repeat detect
             #cat('\nDONE calculating distances on', count_overlap, 'TR elements (len>=10 main TR),', count_seq, 'genes in total...\n\n')
             if (length(dists) > 0) {
                 mode_copy_number <- as.numeric(names(sort(-table(copy_numbers))[1]))
-                cat('### Report counts include:', Kgroup_h, count_seq, count_all_TR, count_10, count_overlap, count_cons, mode_unit_len, mode_copy_number, '\n', sep = '\t')
-                saveRDS(dists, file=paste(Kgroup_h, '.dist', sep=''), compress = TRUE)
-                saveRDS(copy_numbers, file=paste(Kgroup_h, '.copyn', sep=''), compress = TRUE)
+                cat('### Report counts include:', seqID, count_seq, count_all_TR, count_10, count_overlap, count_cons, mode_unit_len, mode_copy_number, '\n', sep = '\t')
+                saveRDS(dists, file=paste(seqID, '.dist', sep=''), compress = TRUE)
+                saveRDS(copy_numbers, file=paste(seqID, '.copyn', sep=''), compress = TRUE)
             } else {
-                cat('Report counts exclude:', Kgroup_h, count_seq, count_all_TR, count_10, count_overlap, count_cons, mode_unit_len, NA, '\n', sep = '\t')
+                cat('Report counts exclude:', seqID, count_seq, count_all_TR, count_10, count_overlap, count_cons, mode_unit_len, NA, '\n', sep = '\t')
             }
         } else {
-            cat('Report counts exclude:', Kgroup_h, count_seq, count_all_TR, count_10, 0, NA, NA, NA, '\n', sep = '\t')
+            cat('Report counts exclude:', seqID, count_seq, count_all_TR, count_10, 0, NA, NA, NA, '\n', sep = '\t')
         }
     } else {
-        cat('\nTR (unit len >10 ) < 2 in', Kgroup_h, '\n')
+        cat('\nTR (unit len >10 ) < 2 in', seqID, '\n')
     }
 }
 if (count_all_TR == 0) {
-	cat('\nTR not detected in', Kgroup_h, '\n')
+	cat('\nTR not detected in', seqID, '\n')
 }
 end_time <- Sys.time()
 cat('Done TR_dist', end_time - start_time, 'sec.\n')
