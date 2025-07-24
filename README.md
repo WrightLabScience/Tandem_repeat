@@ -1,6 +1,6 @@
 # Tandem_repeat
 
-[![DOI](https://zenodo.org/badge/899702990.svg)](https://doi.org/10.5281/zenodo.16391837) \
+[![DOI](https://zenodo.org/badge/899702990.svg)](https://doi.org/10.5281/zenodo.16391837)
 
 Notes, scripts, and data used in the tandem repeat manuscript.
 
