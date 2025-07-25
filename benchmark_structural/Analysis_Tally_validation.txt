@@ -378,45 +378,167 @@ nrow(Tally_RADAR_merged[Tally_RADAR_merged$Tally<0.5,])
 
 
 ########### plot all tools' Tally ###########
-pdf(file = "/Users/shc167/Documents/project/TR02/TR02.102/Tally_val_alltools.2.pdf", width = 7, height = 9)
+df_h=8
+# f_h=2/3
+# span_h=0.6
+# filename <- paste0("/Users/shc167/Documents/project/TR02/TR02.102/Tally_val_alltools.",df_h,"_",round(f_h,digits=2),"_",span_h,".pdf")
+filename <- paste0("/Users/shc167/Documents/project/TR02/TR02.102/Tally_val_alltools.6.pdf")
+pdf(file = filename, width = 7, height = 9)
 par(mfrow = c(4, 2), mar=c(4,4,2,1)) # down, left,
 
-plot(x=Tally_DetectRepeats_wE_merged$Score, y=Tally_DetectRepeats_wE_merged$Tally, log='x', main='DetectRepeats (w/ empirical)', xlab='DetectRepeats Score', ylab='Tally score', pch=16, col='#00000033', cex=0.5)
-lines(smooth.spline(x=Tally_DetectRepeats_wE_merged$Score, y=Tally_DetectRepeats_wE_merged$Tally, df=8), col='red',lwd=1)
-abline(v=8, col="gray",lty = 1)
+###### DetectRepeats_wE ######
+logp <- log10(Tally_DetectRepeats_wE_merged$Score)
+tally <- Tally_DetectRepeats_wE_merged$Tally
+# Base scatter plot
+plot(x = logp, y = tally,
+     main = 'DetectRepeats (w/ empirical)',
+     xlab = expression(log[10](DetectRepeats~Score)),
+     ylab = 'Tally Score',
+     pch = 16, col = '#00000033', cex = 0.5, ylim=c(0,1))
+# Spline
+lines(smooth.spline(x = logp, y = tally, df = df_h), col = '#e6194B', lwd = 2)
+# # Lowess
+# lines(lowess(x = logp, y = tally, f = f_h), col = '#4363d8', lwd = 2)
+# # Loess
+# loess_fit <- loess(tally ~ logp, span = span_h)  # span controls smoothing
+# lines(logp[order(logp)], predict(loess_fit)[order(logp)], col = '#3cb44b', lwd = 2)
+abline(v=log10(8), col="gray",lty = 1)
 abline(h=0.5, col="gray",lty = 1)
 
-plot(x=Tally_DetectRepeats_woE_merged$Score, y=Tally_DetectRepeats_woE_merged$Tally, log='x', main='DetectRepeats (w/o empirical)', xlab='DetectRepeats Score', ylab='Tally score', pch=16, col='#00000033', cex=0.5)
-lines(smooth.spline(x=Tally_DetectRepeats_woE_merged$Score, y=Tally_DetectRepeats_woE_merged$Tally, df=8), col='red',lwd=1)
-abline(v=8, col="gray",lty = 1)
+###### DetectRepeats_woE ######
+logp <- log10(Tally_DetectRepeats_woE_merged$Score)
+tally <- Tally_DetectRepeats_woE_merged$Tally
+# Base scatter plot
+plot(x = logp, y = tally,
+     main = 'DetectRepeats (w/o empirical)',
+     xlab = expression(log[10](DetectRepeats~Score)),
+     ylab = 'Tally Score',
+     pch = 16, col = '#00000033', cex = 0.5, ylim=c(0,1))
+# Spline
+lines(smooth.spline(x = logp, y = tally, df = df_h), col = '#e6194B', lwd = 2)
+# # Lowess
+# lines(lowess(x = logp, y = tally, f = f_h), col = '#4363d8', lwd = 2)
+# # Loess
+# loess_fit <- loess(tally ~ logp, span = span_h)  # span controls smoothing
+# lines(logp[order(logp)], predict(loess_fit)[order(logp)], col = '#3cb44b', lwd = 2)
+abline(v=log10(8), col="gray",lty = 1)
 abline(h=0.5, col="gray",lty = 1)
 
-plot(x=Tally_HHrepID_merged$P.value, y=Tally_HHrepID_merged$Tally, log='x', main='HHrepID', xlab='HHrepID P-value', ylab='Tally Score', pch=16, col='#00000033', cex=0.5, xlim=c(1,1e-20))
-lines(smooth.spline(x=Tally_HHrepID_merged$P.value, y=Tally_HHrepID_merged$Tally, df=8), col='red',lwd=1)
-abline(v=0.001, col="gray",lty = 1)
+# spline_legend <- paste0('spline (df=',df_h,')')
+# lowess_legend <- paste0('lowess (f=',round(f_h,digits=2),')')
+# loess_legend <- paste0('loess (span=',span_h,')')
+# legend('topleft', legend = c(spline_legend, lowess_legend, loess_legend), 
+#        col = c('#e6194B', '#4363d8', '#3cb44b'), lty = 1, lwd = 2, bty = 'n')
+
+###### HHrepID ######
+logp <- -log10(Tally_HHrepID_merged$P.value)
+tally <- Tally_HHrepID_merged$Tally
+# Base scatter plot
+plot(x = logp, y = tally,
+     main = 'HHrepID',
+     xlab = expression(-log[10](HHrepID~P-value)),
+     ylab = 'Tally Score',
+     pch = 16, col = '#00000033', cex = 0.5, xlim=c(0,20), ylim=c(0,1))
+# Spline
+lines(smooth.spline(x = logp, y = tally, df = df_h), col = '#e6194B', lwd = 2)
+# # Lowess
+# lines(lowess(x = logp, y = tally, f = f_h), col = '#4363d8', lwd = 2)
+# # Loess
+# loess_fit <- loess(tally ~ logp, span = span_h)  # span controls smoothing
+# lines(logp[order(logp)], predict(loess_fit)[order(logp)], col = '#3cb44b', lwd = 2)
+abline(v=-log10(0.001), col="gray",lty = 1)
 abline(h=0.5, col="gray",lty = 1)
 
-plot(x=Tally_RADAR_merged$Total_Score, y=Tally_RADAR_merged$Tally, log='x', main='RADAR', xlab='RADAR Total Score', ylab='Tally Score', pch=16, col='#00000033', cex=0.5)
-lines(smooth.spline(x=Tally_RADAR_merged$Total_Score, y=Tally_RADAR_merged$Tally, df=8), col='red',lwd=1)
+###### RADAR ######
+logp <- log10(Tally_RADAR_merged$Total_Score)
+tally <- Tally_RADAR_merged$Tally
+# Base scatter plot
+plot(x = logp, y = tally,
+     main = 'RADAR',
+     xlab = expression(log[10](RADAR~Total~Score)),
+     ylab = 'Tally Score',
+     pch = 16, col = '#00000033', cex = 0.5, ylim=c(0,1))
+# Spline
+lines(smooth.spline(x = logp, y = tally, df = df_h), col = '#e6194B', lwd = 2)
+# # Lowess
+# lines(lowess(x = logp, y = tally, f = f_h), col = '#4363d8', lwd = 2)
+# # Loess
+# loess_fit <- loess(tally ~ logp, span = span_h)  # span controls smoothing
+# lines(logp[order(logp)], predict(loess_fit)[order(logp)], col = '#3cb44b', lwd = 2)
 abline(h=0.5, col="gray",lty = 1)
 
-plot(x=Tally_TRUST_merged$score_sum, y=Tally_TRUST_merged$Tally, log='x', main='TRUST', xlab='TRUST Score', ylab='Tally Score', pch=16, col='#00000033', cex=0.5)
-lines(smooth.spline(x=Tally_TRUST_merged$score_sum, y=Tally_TRUST_merged$Tally, df=8), col='red',lwd=1)
-#abline(v=0.001, col="gray",lty = 1)
+###### TRUST ######
+logp <- log10(Tally_TRUST_merged$score_sum)
+tally <- Tally_TRUST_merged$Tally
+# Base scatter plot
+plot(x = logp, y = tally,
+     main = 'TRUST',
+     xlab = expression(log[10](TRUST~Score)),
+     ylab = 'Tally Score',
+     pch = 16, col = '#00000033', cex = 0.5, ylim=c(0,1))
+# Spline
+lines(smooth.spline(x = logp, y = tally, df = df_h), col = '#e6194B', lwd = 2)
+# # Lowess
+# lines(lowess(x = logp, y = tally, f = f_h), col = '#4363d8', lwd = 2)
+# # Loess
+# loess_fit <- loess(tally ~ logp, span = span_h)  # span controls smoothing
+# lines(logp[order(logp)], predict(loess_fit)[order(logp)], col = '#3cb44b', lwd = 2)
 abline(h=0.5, col="gray",lty = 1)
 
-plot(x=Tally_TREKS_merged$Psim.x, y=Tally_TREKS_merged$Tally, main='T-REKS', xlab='T-REKS Psim', ylab='Tally Score', pch=16, col='#00000033', cex=0.5)
-lines(smooth.spline(x=Tally_TREKS_merged$Psim.x, y=Tally_TREKS_merged$Tally, df=8), col='red',lwd=1)
+###### T-REKS ######
+logp <- Tally_TREKS_merged$Psim.x
+tally <- Tally_TREKS_merged$Tally
+# Base scatter plot
+plot(x = logp, y = tally,
+     main = 'T-REKS',
+     xlab = "T-REKS Psim",
+     ylab = 'Tally Score',
+     pch = 16, col = '#00000033', cex = 0.5, ylim=c(0,1))
+# Spline
+lines(smooth.spline(x = logp, y = tally, df = df_h), col = '#e6194B', lwd = 2)
+# # Lowess
+# lines(lowess(x = logp, y = tally, f = f_h), col = '#4363d8', lwd = 2)
+# # Loess
+# loess_fit <- loess(tally ~ logp, span = span_h)  # span controls smoothing
+# lines(logp[order(logp)], predict(loess_fit)[order(logp)], col = '#3cb44b', lwd = 2)
 abline(v=0.7, col="gray",lty = 1)
 abline(h=0.5, col="gray",lty = 1)
 
-plot(x=Tally_XSTREAM_merged$consensus.error, y=Tally_XSTREAM_merged$Tally, main='XSTREAM', xlab='XSTREAM consensus error', ylab='Tally Score', pch=16, col='#00000033', cex=0.5, xlim=c(0.3,0))
-lines(smooth.spline(x=Tally_XSTREAM_merged$consensus.error, y=Tally_XSTREAM_merged$Tally, df=8), col='red',lwd=1)
+###### XSTREAM ######
+logp <- Tally_XSTREAM_merged$consensus.error
+tally <- Tally_XSTREAM_merged$Tally
+# Base scatter plot
+plot(x = logp, y = tally,
+     main = 'XSTREAM',
+     xlab = 'XSTREAM consensus error',
+     ylab = 'Tally Score',
+     pch = 16, col = '#00000033', cex = 0.5, xlim=c(0.3,0), ylim=c(0,1))
+# Spline
+lines(smooth.spline(x = logp, y = tally, df = df_h), col = '#e6194B', lwd = 2)
+# # Lowess
+# lines(lowess(x = logp, y = tally, f = f_h), col = '#4363d8', lwd = 2)
+# # Loess
+# loess_fit <- loess(tally ~ logp, span = span_h)  # span controls smoothing
+# lines(logp[order(logp)], predict(loess_fit)[order(logp)], col = '#3cb44b', lwd = 2)
 abline(v=0.2, col="gray",lty = 1)
 abline(h=0.5, col="gray",lty = 1)
 
-plot(x=Tally_CESymm_merged$V11, y=Tally_CESymm_merged$Tally, main='CE-Symm', xlab='CE-Symm average TM-score', ylab='Tally score', pch=16, col='#00000033', cex=0.5)
-lines(smooth.spline(x=Tally_CESymm_merged$V11, y=Tally_CESymm_merged$Tally, df=8), col='red',lwd=1)
+###### CESymm ######
+logp <-Tally_CESymm_merged$V11
+tally <- Tally_CESymm_merged$Tally
+# Base scatter plot
+plot(x = logp, y = tally,
+     main = 'CESymm',
+     xlab = 'CESymm average TM-score',
+     ylab = 'Tally Score',
+     pch = 16, col = '#00000033', cex = 0.5, ylim=c(0,1))
+# Spline
+lines(smooth.spline(x = logp, y = tally, df = df_h), col = '#e6194B', lwd = 2)
+# # Lowess
+# lines(lowess(x = logp, y = tally, f = f_h), col = '#4363d8', lwd = 2)
+# # Loess
+# loess_fit <- loess(tally ~ logp, span = span_h)  # span controls smoothing
+# lines(logp[order(logp)], predict(loess_fit)[order(logp)], col = '#3cb44b', lwd = 2)
 abline(h=0.5, col="gray",lty = 1)
 
 dev.off()
